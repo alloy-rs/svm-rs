@@ -3,7 +3,7 @@ extern crate lazy_static;
 
 use std::{
     fs::{self, Permissions},
-    io::Write,
+    io::{Cursor, Write},
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
 };
@@ -97,8 +97,8 @@ pub async fn install(version: &str) -> Result<(), SolcVmError> {
         f
     };
 
-    let bin = res.text().await?;
-    std::io::copy(&mut bin.as_bytes(), &mut dest)?;
+    let mut content = Cursor::new(res.bytes().await?);
+    std::io::copy(&mut content, &mut dest)?;
 
     Ok(())
 }
