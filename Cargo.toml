@@ -1,0 +1,32 @@
+[package]
+name = "solc-vm-rs"
+version = "0.1.0"
+edition = "2018"
+authors = ["Rohit Narurkar <rohit.narurkar@protonmail.com>"]
+
+[lib]
+name = "solc_vm_lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "solc"
+path = "src/solc/main.rs"
+
+[[bin]]
+name = "solc-vm"
+path = "src/solc-vm/main.rs"
+
+[dependencies]
+anyhow = "1.0.43"
+cfg-if = "1.0.0"
+home = "0.5.3"
+lazy_static = "1.4.0"
+rand = "0.8.4"
+reqwest = { version = "0.11.4", features = [ "json" ] }
+serde = { version = "1.0.130", features = [ "derive" ] }
+serde_json = "1.0.59"
+structopt = { version = "0.3", default-features = false }
+tempfile = "3.2.0"
+thiserror = "1.0.29"
+tokio = { version = "1.11.0", features = [ "full" ] }
+url = "2.2.2"
