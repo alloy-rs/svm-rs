@@ -2,13 +2,13 @@
 
 * List available versions
 ```
-$ solc-vm list
+$ svm list
 ```
 * Install a version
 ```
-$ solc-vm install <version>
+$ svm install <version>
 ```
 * Use an installed version
 ```
-$ solc-vm use <version>
+$ svm use <version>
 ```

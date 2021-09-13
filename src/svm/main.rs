@@ -16,9 +16,9 @@ enum SolcVm {
 async fn main() -> anyhow::Result<()> {
     let opt = SolcVm::from_args();
 
-    let all_versions = solc_vm_lib::all_versions().await?;
-    let installed_versions = solc_vm_lib::installed_versions().unwrap_or_default();
-    let current_version = solc_vm_lib::current_version().unwrap_or_else(|_| "".to_string());
+    let all_versions = svm_lib::all_versions().await?;
+    let installed_versions = svm_lib::installed_versions().unwrap_or_default();
+    let current_version = svm_lib::current_version().unwrap_or_else(|_| "".to_string());
 
     match opt {
         SolcVm::List => {
@@ -36,7 +36,7 @@ async fn main() -> anyhow::Result<()> {
                 println!("Version: {:?} is already installed", version);
             } else if all_versions.contains(&version) {
                 println!("Installing version: {:#?}", version);
-                solc_vm_lib::install(&version).await?;
+                svm_lib::install(&version).await?;
             } else {
                 println!("Version: {:?} unsupported", version);
             }
@@ -44,12 +44,12 @@ async fn main() -> anyhow::Result<()> {
         SolcVm::Use { version } => {
             if installed_versions.contains(&version) {
                 println!("Setting global version: {:?}", version);
-                solc_vm_lib::use_version(&version)?;
+                svm_lib::use_version(&version)?;
             } else if all_versions.contains(&version) {
                 println!("Installed version: {:?}", version);
-                solc_vm_lib::install(&version).await?;
+                svm_lib::install(&version).await?;
                 println!("Setting global version: {:?}", version);
-                solc_vm_lib::use_version(&version)?;
+                svm_lib::use_version(&version)?;
             } else {
                 println!("Version: {:?} unsupported", version);
             }
