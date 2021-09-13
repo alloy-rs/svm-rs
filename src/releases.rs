@@ -27,7 +27,7 @@ const OLD_SOLC_RELEASES: &str =
 #[derive(Debug, Deserialize)]
 pub struct Releases {
     #[serde(deserialize_with = "de_releases")]
-    pub releases: HashMap<Version, Version>,
+    pub releases: HashMap<Version, String>,
 }
 
 /// Helper to parse string to semver::Version.
@@ -40,17 +40,15 @@ where
 }
 
 /// Custom deserializer that deserializes a map of <String, String> to <Version, Version>.
-fn de_releases<'de, D>(deserializer: D) -> Result<HashMap<Version, Version>, D::Error>
+fn de_releases<'de, D>(deserializer: D) -> Result<HashMap<Version, String>, D::Error>
 where
     D: Deserializer<'de>,
 {
     #[derive(PartialEq, Eq, Hash, Deserialize)]
     struct Wrapper(#[serde(deserialize_with = "version_from_string")] Version);
 
-    let v = HashMap::<Wrapper, Wrapper>::deserialize(deserializer)?;
-    Ok(v.into_iter()
-        .map(|(Wrapper(k), Wrapper(v))| (k, v))
-        .collect())
+    let v = HashMap::<Wrapper, String>::deserialize(deserializer)?;
+    Ok(v.into_iter().map(|(Wrapper(k), v)| (k, v)).collect())
 }
 
 /// Fetch all releases available for the provided platform.

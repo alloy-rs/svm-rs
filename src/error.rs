@@ -3,6 +3,8 @@ use thiserror::Error;
 /// Error types from the svm_lib crate.
 #[derive(Debug, Error)]
 pub enum SolcVmError {
+    #[error("SVM global version not set")]
+    GlobalVersionNotSet,
     #[error("Unknown version provided")]
     UnknownVersion,
     #[error("Unsupported version {0} for platform {1}")]
