@@ -63,3 +63,10 @@ pub fn set_global_version(version: &Version) {
     ProgressBar::new_spinner()
         .finish_with_message(format!("Global version set: {}", version.to_string()));
 }
+
+pub fn version_not_found(version: &Version) {
+    println!(
+        "{}",
+        style(format!("Version: {} not found", version.to_string())).red()
+    );
+}

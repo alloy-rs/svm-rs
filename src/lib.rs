@@ -119,6 +119,12 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
     Ok(())
 }
 
+/// Removes the provided version of Solc from the machine.
+pub fn remove_version(version: &Version) -> Result<(), SolcVmError> {
+    fs::remove_dir_all(version_path(version.to_string().as_str()))?;
+    Ok(())
+}
+
 fn setup_home() -> Result<PathBuf, SolcVmError> {
     let home_dir = SVM_HOME.to_path_buf();
     if !home_dir.as_path().exists() {
