@@ -30,3 +30,6 @@ tempfile = "3.2.0"
 thiserror = "1.0.29"
 tokio = { version = "1.11.0", features = [ "full" ] }
 url = "2.2.2"
+
+[build-dependencies]
+home = "0.5.3"
