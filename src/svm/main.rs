@@ -1,5 +1,7 @@
-use std::collections::HashSet;
+use semver::Version;
 use structopt::StructOpt;
+
+use std::collections::HashSet;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "solc-vm", about = "Solc version manager")]
@@ -18,20 +20,25 @@ async fn main() -> anyhow::Result<()> {
 
     let all_versions = svm_lib::all_versions().await?;
     let installed_versions = svm_lib::installed_versions().unwrap_or_default();
-    let current_version = svm_lib::current_version().unwrap_or_else(|_| "".to_string());
+    let current_version = svm_lib::current_version()?;
 
     match opt {
         SolcVm::List => {
-            let a: HashSet<String> = all_versions.iter().cloned().collect();
-            let b: HashSet<String> = installed_versions.iter().cloned().collect();
+            let a: HashSet<Version> = all_versions.iter().cloned().collect();
+            let b: HashSet<Version> = installed_versions.iter().cloned().collect();
             let c = &a - &b;
             println!("Current version: {:?}", current_version);
+
             println!("Installed versions");
             println!("{:#?}", installed_versions);
+
+            let mut available_versions = c.iter().cloned().collect::<Vec<Version>>();
+            available_versions.sort();
             println!("Available versions");
-            println!("{:#?}", c.iter().cloned().collect::<Vec<String>>());
+            println!("{:#?}", available_versions);
         }
         SolcVm::Install { version } => {
+            let version = Version::parse(&version)?;
             if installed_versions.contains(&version) {
                 println!("Version: {:?} is already installed", version);
             } else if all_versions.contains(&version) {
@@ -42,6 +49,7 @@ async fn main() -> anyhow::Result<()> {
             }
         }
         SolcVm::Use { version } => {
+            let version = Version::parse(&version)?;
             if installed_versions.contains(&version) {
                 println!("Setting global version: {:?}", version);
                 svm_lib::use_version(&version)?;

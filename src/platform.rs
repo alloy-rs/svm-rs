@@ -1,5 +1,6 @@
 use std::env;
 
+/// Types of supported platforms.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Platform {
     LinuxAmd64,
@@ -17,6 +18,7 @@ impl ToString for Platform {
     }
 }
 
+/// Read the current machine's platform.
 pub fn platform() -> Platform {
     match env::consts::OS {
         "linux" => Platform::LinuxAmd64,

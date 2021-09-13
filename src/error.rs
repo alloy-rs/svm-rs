@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+/// Error types from the svm_lib crate.
 #[derive(Debug, Error)]
 pub enum SolcVmError {
     #[error("Unknown version provided")]
@@ -12,6 +13,8 @@ pub enum SolcVmError {
     IoError(#[from] std::io::Error),
     #[error(transparent)]
     ReqwestError(#[from] reqwest::Error),
+    #[error(transparent)]
+    SemverError(#[from] semver::Error),
     #[error(transparent)]
     UrlError(#[from] url::ParseError),
 }

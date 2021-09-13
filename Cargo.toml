@@ -23,6 +23,7 @@ home = "0.5.3"
 once_cell = "1.8.0"
 rand = "0.8.4"
 reqwest = { version = "0.11.4", features = [ "json" ] }
+semver = "1.0.4"
 serde = { version = "1.0.130", features = [ "derive" ] }
 serde_json = "1.0.59"
 structopt = { version = "0.3", default-features = false }
