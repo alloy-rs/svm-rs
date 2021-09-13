@@ -3,6 +3,8 @@ use structopt::StructOpt;
 
 use std::collections::HashSet;
 
+mod print;
+
 #[derive(Debug, StructOpt)]
 #[structopt(name = "solc-vm", about = "Solc version manager")]
 enum SolcVm {
@@ -27,15 +29,13 @@ async fn main() -> anyhow::Result<()> {
             let a: HashSet<Version> = all_versions.iter().cloned().collect();
             let b: HashSet<Version> = installed_versions.iter().cloned().collect();
             let c = &a - &b;
-            println!("Current version: {:?}", current_version);
-
-            println!("Installed versions");
-            println!("{:#?}", installed_versions);
 
             let mut available_versions = c.iter().cloned().collect::<Vec<Version>>();
             available_versions.sort();
-            println!("Available versions");
-            println!("{:#?}", available_versions);
+
+            print::current_version(current_version);
+            print::installed_versions(installed_versions);
+            print::available_versions(available_versions);
         }
         SolcVm::Install { version } => {
             let version = Version::parse(&version)?;
@@ -44,6 +44,9 @@ async fn main() -> anyhow::Result<()> {
             } else if all_versions.contains(&version) {
                 println!("Installing version: {:#?}", version);
                 svm_lib::install(&version).await?;
+                if current_version.is_none() {
+                    svm_lib::use_version(&version)?;
+                }
             } else {
                 println!("Version: {:?} unsupported", version);
             }
