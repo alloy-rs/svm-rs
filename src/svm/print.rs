@@ -1,27 +1,28 @@
-use crossterm::style::Stylize;
+use console::style;
+use indicatif::{ProgressBar, ProgressStyle};
 use itertools::Itertools;
 use semver::Version;
 
 pub fn current_version(version: Option<Version>) {
     match version {
         Some(v) => {
-            println!("{} (current)", v.to_string().as_str().green());
+            println!("{} (current)", style(v.to_string().as_str()).green());
         }
         None => {
-            println!("Current version not set");
+            println!("Global version not set");
         }
     }
 }
 
 pub fn installed_versions(versions: Vec<Version>) {
-    println!("\n{}", "Installed Versions".bold());
+    println!("\n{}", style("Installed Versions").bold());
     versions.iter().for_each(|v| {
-        println!("{}", v.to_string().as_str().yellow());
+        println!("{}", style(v.to_string().as_str()).yellow());
     });
 }
 
 pub fn available_versions(versions: Vec<Version>) {
-    println!("\n{}", "Available to Install".bold());
+    println!("\n{}", style("Available to Install").bold());
     let groups = versions
         .iter()
         .group_by(|v| v.minor)
@@ -34,4 +35,31 @@ pub fn available_versions(versions: Vec<Version>) {
             group.iter().map(|v| v.to_string()).collect::<Vec<String>>()
         );
     }
+}
+
+pub fn installing_version(version: &Version) -> ProgressBar {
+    let spinner = ProgressBar::new_spinner();
+    spinner.enable_steady_tick(120);
+    spinner.set_message(format!("Downloading Solc {}", version.to_string()));
+    spinner.set_style(
+        ProgressStyle::default_spinner()
+            .tick_strings(&[
+                "☀️ ", "☀️ ", "☀️ ", "🌤 ", "⛅️ ", "🌥 ", "☁️ ", "🌧 ", "🌨 ", "🌧 ", "🌨 ", "🌧 ", "🌨 ",
+                "⛈ ", "🌨 ", "🌧 ", "🌨 ", "☁️ ", "🌥 ", "⛅️ ", "🌤 ", "☀️ ", "☀️ ",
+            ])
+            .template("{spinner:.green} {msg}"),
+    );
+    spinner
+}
+
+pub fn unsupported_version(version: &Version) {
+    println!(
+        "{}",
+        style(format!("Version: {} unsupported", version.to_string())).red()
+    );
+}
+
+pub fn set_global_version(version: &Version) {
+    ProgressBar::new_spinner()
+        .finish_with_message(format!("Global version set: {}", version.to_string()));
 }
