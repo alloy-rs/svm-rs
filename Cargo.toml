@@ -3,6 +3,13 @@ name = "svm-rs"
 version = "0.1.0"
 edition = "2018"
 authors = ["Rohit Narurkar <rohit.narurkar@protonmail.com>"]
+license = "MIT OR Apache-2.0"
+description = """
+Solidity-Compiler (Solc) Version Manager.
+"""
+readme = "README.md"
+repository = "https://github.com/roynalnaruto/svm-rs"
+homepage = "https://github.com/roynalnaruto/svm-rs"
 
 [lib]
 name = "svm_lib"
