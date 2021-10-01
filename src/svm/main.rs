@@ -11,8 +11,8 @@ mod print;
 enum SolcVm {
     #[structopt(about = "List all versions of Solc")]
     List,
-    #[structopt(about = "Install a Solc version")]
-    Install { version: String },
+    #[structopt(about = "Install Solc versions")]
+    Install { versions: Vec<String> },
     #[structopt(about = "Use a Solc version")]
     Use { version: String },
     #[structopt(about = "Remove a Solc version")]
@@ -27,15 +27,23 @@ async fn main() -> anyhow::Result<()> {
         SolcVm::List => {
             handle_list().await?;
         }
-        SolcVm::Install { version } => {
-            handle_install(Version::parse(&version)?).await?;
+        SolcVm::Install { versions } => {
+            for v in versions {
+                handle_install(Version::parse(&v)?).await?;
+            }
         }
         SolcVm::Use { version } => {
             handle_use(Version::parse(&version)?).await?;
         }
-        SolcVm::Remove { version } => {
-            handle_remove(Version::parse(&version)?)?;
-        }
+        SolcVm::Remove { version } => match version.as_str() {
+            "ALL" | "all" => {
+                for v in svm_lib::installed_versions().unwrap_or_default() {
+                    svm_lib::remove_version(&v)?;
+                }
+                svm_lib::unset_global_version()?;
+            }
+            _ => handle_remove(Version::parse(&version)?)?,
+        },
     }
 
     Ok(())
@@ -133,7 +141,9 @@ fn handle_remove(version: Version) -> anyhow::Result<()> {
                         installed_versions.remove(i);
                         if let Some(new_version) = installed_versions.pop() {
                             svm_lib::use_version(&new_version)?;
-                            print::set_global_version(&version);
+                            print::set_global_version(&new_version);
+                        } else {
+                            svm_lib::unset_global_version()?;
                         }
                     }
                 }

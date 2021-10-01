@@ -56,6 +56,13 @@ pub fn use_version(version: &Version) -> Result<(), SolcVmError> {
     Ok(())
 }
 
+/// Unset the global version. This should be done if all versions are removed.
+pub fn unset_global_version() -> Result<(), SolcVmError> {
+    let mut v = fs::File::create(global_version_path().as_path())?;
+    v.write_all("".as_bytes())?;
+    Ok(())
+}
+
 /// Reads the list of Solc versions that have been installed in the machine. The version list is
 /// sorted in ascending order.
 pub fn installed_versions() -> Result<Vec<Version>, SolcVmError> {
