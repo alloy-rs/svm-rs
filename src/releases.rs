@@ -1,3 +1,4 @@
+use once_cell::sync::Lazy;
 use reqwest::get;
 use semver::Version;
 use serde::{
@@ -10,8 +11,29 @@ use url::Url;
 use crate::{error::SolcVmError, platform::Platform};
 
 const SOLC_RELEASES_URL: &str = "https://binaries.soliditylang.org";
-const OLD_SOLC_RELEASES: &str =
+const OLD_SOLC_RELEASES_URL: &str =
     "https://raw.githubusercontent.com/crytic/solc/list-json/linux/amd64";
+
+const OLD_SOLC_RELEASES: Lazy<Releases> = Lazy::new(|| {
+    serde_json::from_str(
+        r#"{
+            "releases": {
+                "0.4.10": "solc-v0.4.10",
+                "0.4.9": "solc-v0.4.9",
+                "0.4.8": "solc-v0.4.8",
+                "0.4.7": "solc-v0.4.7",
+                "0.4.6":"solc-v0.4.6",
+                "0.4.5": "solc-v0.4.5",
+                "0.4.4":"solc-v0.4.4",
+                "0.4.3":"solc-v0.4.3",
+                "0.4.2":"solc-v0.4.2",
+                "0.4.1": "solc-v0.4.1",
+                "0.4.0": "solc-v0.4.0"
+            }
+        }"#,
+    )
+    .expect("could not parse old solc list.json")
+});
 
 /// Defines the struct that the JSON-formatted release list can be deserialized into.
 ///
@@ -24,7 +46,7 @@ const OLD_SOLC_RELEASES: &str =
 /// }
 ///
 /// Both the key and value are deserialized into semver::Version.
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Releases {
     #[serde(deserialize_with = "de_releases")]
     pub releases: HashMap<Version, String>,
@@ -63,11 +85,7 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
     .await?;
 
     if platform == Platform::LinuxAmd64 {
-        let mut all_releases = get(format!("{}/list.json", OLD_SOLC_RELEASES))
-            .await?
-            .json::<Releases>()
-            .await?;
-
+        let mut all_releases = OLD_SOLC_RELEASES.clone();
         all_releases.releases.extend(releases.releases);
         return Ok(all_releases);
     }
@@ -85,7 +103,10 @@ pub fn artifact_url(platform: Platform, version: String) -> Result<Url, SolcVmEr
     }
 
     if version.as_str() < "0.4.10" {
-        return Ok(Url::parse(&format!("{}/{}", OLD_SOLC_RELEASES, version))?);
+        return Ok(Url::parse(&format!(
+            "{}/{}",
+            OLD_SOLC_RELEASES_URL, version
+        ))?);
     }
 
     Ok(Url::parse(&format!(
