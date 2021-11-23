@@ -48,8 +48,40 @@ const OLD_SOLC_RELEASES: Lazy<Releases> = Lazy::new(|| {
 /// Both the key and value are deserialized into semver::Version.
 #[derive(Clone, Debug, Deserialize)]
 pub struct Releases {
+    pub builds: Vec<BuildInfo>,
     #[serde(deserialize_with = "de_releases")]
     pub releases: HashMap<Version, String>,
+}
+
+impl Releases {
+    /// Get the checksum of a solc version's binary if it exists.
+    pub fn get_checksum(&self, v: &Version) -> Option<Vec<u8>> {
+        for build in self.builds.iter() {
+            if build.version.eq(v) {
+                return Some(build.sha256.clone());
+            }
+        }
+        None
+    }
+}
+
+/// Build info contains the SHA256 checksum of a solc binary.
+#[derive(Clone, Debug, Deserialize)]
+pub struct BuildInfo {
+    #[serde(deserialize_with = "version_from_string")]
+    pub version: Version,
+    #[serde(deserialize_with = "from_hex_string")]
+    pub sha256: Vec<u8>,
+}
+
+/// Helper to parse hex string to a vector.
+fn from_hex_string<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let str_hex = String::deserialize(deserializer)?;
+    let str_hex = str_hex.trim_start_matches("0x");
+    hex::decode(str_hex).map_err(|err| de::Error::custom(err.to_string()))
 }
 
 /// Helper to parse string to semver::Version.

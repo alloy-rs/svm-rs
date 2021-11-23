@@ -11,6 +11,8 @@ pub enum SolcVmError {
     UnsupportedVersion(String, String),
     #[error("Version {0} not installed")]
     VersionNotInstalled(String),
+    #[error("Checksum mismatch for version {0}")]
+    ChecksumMismatch(String),
     #[error(transparent)]
     IoError(#[from] std::io::Error),
     #[error(transparent)]

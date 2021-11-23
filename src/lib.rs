@@ -1,5 +1,6 @@
 use once_cell::sync::Lazy;
 use semver::Version;
+use sha2::Digest;
 
 use std::{
     ffi::OsString,
@@ -111,6 +112,18 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
     let download_url = releases::artifact_url(platform::platform(), artifact.to_string())?;
 
     let res = reqwest::get(download_url).await?;
+    let binbytes = res.bytes().await?;
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(&binbytes);
+    let cs = &hasher.finalize()[..];
+    let checksum = artifacts
+        .get_checksum(&version)
+        .expect("checksum not available");
+
+    // checksum does not match
+    if cs != checksum {
+        return Err(SolcVmError::ChecksumMismatch(version.to_string()));
+    }
 
     let mut dest = {
         setup_version(version.to_string().as_str())?;
@@ -119,8 +132,7 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
         f.set_permissions(Permissions::from_mode(0o777))?;
         f
     };
-
-    let mut content = Cursor::new(res.bytes().await?);
+    let mut content = Cursor::new(binbytes);
     std::io::copy(&mut content, &mut dest)?;
 
     Ok(())

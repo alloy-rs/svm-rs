@@ -28,6 +28,7 @@ anyhow = "1.0.43"
 cfg-if = "1.0.0"
 console = "0.14.1"
 dialoguer = "0.8.0"
+hex = "0.4.3"
 home = "0.5.3"
 indicatif = "0.16.2"
 itertools = "0.10.1"
@@ -37,6 +38,7 @@ reqwest = { version = "0.11.4", features = [ "json" ] }
 semver = "1.0.4"
 serde = { version = "1.0.130", features = [ "derive" ] }
 serde_json = "1.0.59"
+sha2 = "0.9.8"
 structopt = { version = "0.3", default-features = false }
 tempfile = "3.2.0"
 thiserror = "1.0.29"
