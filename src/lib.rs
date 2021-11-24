@@ -147,10 +147,18 @@ pub fn remove_version(version: &Version) -> Result<(), SolcVmError> {
     Ok(())
 }
 
-fn setup_home() -> Result<PathBuf, SolcVmError> {
+/// Setup SVM home directory.
+pub fn setup_home() -> Result<PathBuf, SolcVmError> {
+    // create ~/.svm
     let home_dir = SVM_HOME.to_path_buf();
     if !home_dir.as_path().exists() {
         fs::create_dir_all(home_dir.clone())?;
+    }
+    // create ~/.svm/.global-version
+    let mut global_version = SVM_HOME.to_path_buf();
+    global_version.push(".global-version");
+    if !global_version.as_path().exists() {
+        fs::File::create(global_version.as_path())?;
     }
     Ok(home_dir)
 }
