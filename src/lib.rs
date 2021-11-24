@@ -17,7 +17,7 @@ mod platform;
 pub use platform::platform;
 
 mod releases;
-pub use releases::all_releases;
+pub use releases::{all_releases, Releases};
 
 /// Declare path to Solc Version Manager's home directory, "~/.svm" on Unix-based machines.
 pub static SVM_HOME: Lazy<PathBuf> = Lazy::new(|| {
