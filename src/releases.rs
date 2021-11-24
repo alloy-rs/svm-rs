@@ -46,7 +46,7 @@ const OLD_SOLC_RELEASES: Lazy<Releases> = Lazy::new(|| {
 /// }
 ///
 /// Both the key and value are deserialized into semver::Version.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct Releases {
     pub builds: Vec<BuildInfo>,
     #[serde(deserialize_with = "de_releases")]
