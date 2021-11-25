@@ -23,6 +23,8 @@ enum SolcVm {
 async fn main() -> anyhow::Result<()> {
     let opt = SolcVm::from_args();
 
+    svm_lib::setup_home()?;
+
     match opt {
         SolcVm::List => {
             handle_list().await?;

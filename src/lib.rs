@@ -1,5 +1,6 @@
 use once_cell::sync::Lazy;
 use semver::Version;
+use sha2::Digest;
 
 use std::{
     ffi::OsString,
@@ -13,7 +14,10 @@ mod error;
 pub use error::SolcVmError;
 
 mod platform;
+pub use platform::platform;
+
 mod releases;
+pub use releases::{all_releases, Releases};
 
 /// Declare path to Solc Version Manager's home directory, "~/.svm" on Unix-based machines.
 pub static SVM_HOME: Lazy<PathBuf> = Lazy::new(|| {
@@ -111,6 +115,18 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
     let download_url = releases::artifact_url(platform::platform(), artifact.to_string())?;
 
     let res = reqwest::get(download_url).await?;
+    let binbytes = res.bytes().await?;
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(&binbytes);
+    let cs = &hasher.finalize()[..];
+    let checksum = artifacts
+        .get_checksum(&version)
+        .expect("checksum not available");
+
+    // checksum does not match
+    if cs != checksum {
+        return Err(SolcVmError::ChecksumMismatch(version.to_string()));
+    }
 
     let mut dest = {
         setup_version(version.to_string().as_str())?;
@@ -119,8 +135,7 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
         f.set_permissions(Permissions::from_mode(0o777))?;
         f
     };
-
-    let mut content = Cursor::new(res.bytes().await?);
+    let mut content = Cursor::new(binbytes);
     std::io::copy(&mut content, &mut dest)?;
 
     Ok(())
@@ -132,10 +147,18 @@ pub fn remove_version(version: &Version) -> Result<(), SolcVmError> {
     Ok(())
 }
 
-fn setup_home() -> Result<PathBuf, SolcVmError> {
+/// Setup SVM home directory.
+pub fn setup_home() -> Result<PathBuf, SolcVmError> {
+    // create ~/.svm
     let home_dir = SVM_HOME.to_path_buf();
     if !home_dir.as_path().exists() {
         fs::create_dir_all(home_dir.clone())?;
+    }
+    // create ~/.svm/.global-version
+    let mut global_version = SVM_HOME.to_path_buf();
+    global_version.push(".global-version");
+    if !global_version.as_path().exists() {
+        fs::File::create(global_version.as_path())?;
     }
     Ok(home_dir)
 }
