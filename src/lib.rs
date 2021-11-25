@@ -122,7 +122,7 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
     let cs = &hasher.finalize()[..];
     let checksum = artifacts
         .get_checksum(version)
-        .expect("checksum not available");
+        .expect(&format!("checksum not available: {:?}", version.to_string()));
 
     // checksum does not match
     if cs != checksum {

@@ -14,7 +14,7 @@ const SOLC_RELEASES_URL: &str = "https://binaries.soliditylang.org";
 const OLD_SOLC_RELEASES_DOWNLOAD_PREFIX: &str =
     "https://raw.githubusercontent.com/crytic/solc/master/linux/amd64";
 
-static OLD_VERSION_MAX: Lazy<Version> = Lazy::new(|| Version::new(0, 4, 10));
+static OLD_VERSION_MAX: Lazy<Version> = Lazy::new(|| Version::new(0, 4, 9));
 
 static OLD_VERSION_MIN: Lazy<Version> = Lazy::new(|| Version::new(0, 4, 0));
 
@@ -22,10 +22,6 @@ static OLD_SOLC_RELEASES: Lazy<Releases> = Lazy::new(|| {
     serde_json::from_str(
         r#"{
             "builds": [
-                {
-                    "version": "0.4.10",
-                    "sha256": "0x4a03cdae688434a278b067c8e468f16995f01fc0dcca45b3ab8f7a61ab1788a7"
-                },
                 {
                     "version": "0.4.9",
                     "sha256": "0x71da154585e0c9048445b39b3662b421d20814cc68482b6b072aae2e541a4c74"
@@ -68,7 +64,6 @@ static OLD_SOLC_RELEASES: Lazy<Releases> = Lazy::new(|| {
                 }
             ],
             "releases": {
-                "0.4.10": "solc-v0.4.10",
                 "0.4.9": "solc-v0.4.9",
                 "0.4.8": "solc-v0.4.8",
                 "0.4.7": "solc-v0.4.7",
