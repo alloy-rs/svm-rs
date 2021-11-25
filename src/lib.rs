@@ -120,9 +120,10 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
     let mut hasher = sha2::Sha256::new();
     hasher.update(&binbytes);
     let cs = &hasher.finalize()[..];
-    let checksum = artifacts
-        .get_checksum(version)
-        .expect(&format!("checksum not available: {:?}", version.to_string()));
+    let checksum = artifacts.get_checksum(version).expect(&format!(
+        "checksum not available: {:?}",
+        version.to_string()
+    ));
 
     // checksum does not match
     if cs != checksum {
