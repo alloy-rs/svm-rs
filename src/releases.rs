@@ -169,6 +169,7 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
 
     if platform == Platform::LinuxAmd64 {
         let mut all_releases = OLD_SOLC_RELEASES.clone();
+        all_releases.builds.extend(releases.builds);
         all_releases.releases.extend(releases.releases);
         return Ok(all_releases);
     }
@@ -213,8 +214,8 @@ mod tests {
 
     #[test]
     fn test_old_releases_deser() {
-        assert_eq!(OLD_SOLC_RELEASES.releases.len(), 11);
-        assert_eq!(OLD_SOLC_RELEASES.builds.len(), 11);
+        assert_eq!(OLD_SOLC_RELEASES.releases.len(), 10);
+        assert_eq!(OLD_SOLC_RELEASES.builds.len(), 10);
     }
 
     #[tokio::test]
