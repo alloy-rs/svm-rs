@@ -11,12 +11,61 @@ use url::Url;
 use crate::{error::SolcVmError, platform::Platform};
 
 const SOLC_RELEASES_URL: &str = "https://binaries.soliditylang.org";
-const OLD_SOLC_RELEASES_URL: &str =
-    "https://raw.githubusercontent.com/crytic/solc/list-json/linux/amd64";
+const OLD_SOLC_RELEASES_DOWNLOAD_PREFIX: &str =
+    "https://raw.githubusercontent.com/crytic/solc/master/linux/amd64";
+
+const OLD_VERSION_MAX: Lazy<Version> = Lazy::new(|| Version::new(0, 4, 10));
+const OLD_VERSION_MIN: Lazy<Version> = Lazy::new(|| Version::new(0, 4, 0));
 
 const OLD_SOLC_RELEASES: Lazy<Releases> = Lazy::new(|| {
     serde_json::from_str(
         r#"{
+            "builds": [
+                {
+                    "version": "0.4.10",
+                    "sha256": "0x4a03cdae688434a278b067c8e468f16995f01fc0dcca45b3ab8f7a61ab1788a7"
+                },
+                {
+                    "version": "0.4.9",
+                    "sha256": "0x71da154585e0c9048445b39b3662b421d20814cc68482b6b072aae2e541a4c74"
+                },
+                {
+                    "version": "0.4.8",
+                    "sha256": "0xee76039f933938cb5c14bf3fc4754776aa3e5c4c88420413da4c0c13731b8ffe"
+                },
+                {
+                    "version": "0.4.7",
+                    "sha256": "0xe1affb6e13dee7b14039f8eb1a52343f5fdc56169023e0f7fc339dfc25ad2b3d"
+                },
+                {
+                    "version": "0.4.6",
+                    "sha256": "0x0525d7b95549db6c913edb3c1b0c26d2db81e64b03f8352261df1b2ad696a65e"
+                },
+                {
+                    "version": "0.4.5",
+                    "sha256": "0x6f46ab7747d7de1b75907e539e6e19be201680e64ce99b583c6356e4e7897406"
+                },
+                {
+                    "version": "0.4.4",
+                    "sha256": "0x25d148e9c1052631a930bfbe8e4e3d9dae8de7659f8d3ea659a3ef139cd5e2c9"
+                },
+                {
+                    "version": "0.4.3",
+                    "sha256": "0x1dc7ef0b4aab472299e77b39c7465cd5ed4609a759b52ce1a93f2d54395da73a"
+                },
+                {
+                    "version": "0.4.2",
+                    "sha256": "0x891d0b2d3a636ff40924802a6f5beb1ecbc42d5d0d0bfecbbb148b561c861fb9"
+                },
+                {
+                    "version": "0.4.1",
+                    "sha256": "0xa0c06d0c6a14c66ddeca1f065461fb0024de89421c1809a1b103b55c94e30860"
+                },
+                {
+                    "version": "0.4.0",
+                    "sha256": "0xe26d188284763684f3cf6d4900b72f7e45a050dd2b2707320273529d033cfd47"
+                }
+            ],
             "releases": {
                 "0.4.10": "solc-v0.4.10",
                 "0.4.9": "solc-v0.4.9",
@@ -38,6 +87,12 @@ const OLD_SOLC_RELEASES: Lazy<Releases> = Lazy::new(|| {
 /// Defines the struct that the JSON-formatted release list can be deserialized into.
 ///
 /// {
+///     "builds": [
+///         {
+///             "version": "0.8.7",
+///             "sha256": "0x0xcc5c663d1fe17d4eb4aca09253787ac86b8785235fca71d9200569e662677990"
+///         }
+///     ]
 ///     "releases": {
 ///         "0.8.7": "solc-macosx-amd64-v0.8.7+commit.e28d00a7",
 ///         "0.8.6": "solc-macosx-amd64-v0.8.6+commit.11564f7e",
@@ -126,32 +181,45 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
 }
 
 /// Construct the URL to the Solc binary for the specified release version and target platform.
-pub fn artifact_url(platform: Platform, version: String) -> Result<Url, SolcVmError> {
-    if platform == Platform::MacOsAmd64 && version.as_str() < "0.4.10" {
-        return Err(SolcVmError::UnsupportedVersion(
-            version,
-            platform.to_string(),
-        ));
-    }
-
-    if version.as_str() < "0.4.10" {
+pub fn artifact_url(
+    platform: Platform,
+    version: &Version,
+    artifact: &str,
+) -> Result<Url, SolcVmError> {
+    if platform == Platform::LinuxAmd64
+        && version.le(&OLD_VERSION_MAX)
+        && version.ge(&OLD_VERSION_MIN)
+    {
         return Ok(Url::parse(&format!(
             "{}/{}",
-            OLD_SOLC_RELEASES_URL, version
+            OLD_SOLC_RELEASES_DOWNLOAD_PREFIX, artifact
         ))?);
+    }
+
+    if platform == Platform::MacOsAmd64 && version.lt(&OLD_VERSION_MIN) {
+        return Err(SolcVmError::UnsupportedVersion(
+            version.to_string(),
+            platform.to_string(),
+        ));
     }
 
     Ok(Url::parse(&format!(
         "{}/{}/{}",
         SOLC_RELEASES_URL,
         platform.to_string(),
-        version
+        artifact
     ))?)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_old_releases_deser() {
+        assert_eq!(OLD_SOLC_RELEASES.releases.len(), 11);
+        assert_eq!(OLD_SOLC_RELEASES.builds.len(), 11);
+    }
 
     #[tokio::test]
     async fn test_all_releases_macos() {

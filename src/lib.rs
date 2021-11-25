@@ -112,7 +112,8 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
         .releases
         .get(version)
         .ok_or(SolcVmError::UnknownVersion)?;
-    let download_url = releases::artifact_url(platform::platform(), artifact.to_string())?;
+    let download_url =
+        releases::artifact_url(platform::platform(), version, artifact.to_string().as_str())?;
 
     let res = reqwest::get(download_url).await?;
     let binbytes = res.bytes().await?;
