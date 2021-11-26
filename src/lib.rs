@@ -105,9 +105,8 @@ pub async fn all_versions() -> Result<Vec<Version>, SolcVmError> {
 
 /// Installs the provided version of Solc in the machine.
 pub async fn install(version: &Version) -> Result<(), SolcVmError> {
-    setup_home()?;
+    let artifacts = setup_home().await?.1;
 
-    let artifacts = releases::all_releases(platform::platform()).await?;
     let artifact = artifacts
         .releases
         .get(version)
@@ -149,7 +148,7 @@ pub fn remove_version(version: &Version) -> Result<(), SolcVmError> {
 }
 
 /// Setup SVM home directory.
-pub fn setup_home() -> Result<PathBuf, SolcVmError> {
+pub async fn setup_home() -> Result<(PathBuf, Releases), SolcVmError> {
     // create ~/.svm
     let home_dir = SVM_HOME.to_path_buf();
     if !home_dir.as_path().exists() {
@@ -161,7 +160,16 @@ pub fn setup_home() -> Result<PathBuf, SolcVmError> {
     if !global_version.as_path().exists() {
         fs::File::create(global_version.as_path())?;
     }
-    Ok(home_dir)
+
+    let releases_path = SVM_HOME.join("releases.json");
+    let releases = if releases_path.exists() {
+        let reader = std::fs::File::open(&releases_path)?;
+        serde_json::from_reader(reader)?
+    } else {
+        releases::all_releases(platform::platform()).await?
+    };
+
+    Ok((home_dir, releases))
 }
 
 fn setup_version(version: &str) -> Result<(), SolcVmError> {

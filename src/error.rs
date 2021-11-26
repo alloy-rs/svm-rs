@@ -21,4 +21,6 @@ pub enum SolcVmError {
     SemverError(#[from] semver::Error),
     #[error(transparent)]
     UrlError(#[from] url::ParseError),
+    #[error(transparent)]
+    SerdeError(#[from] serde_json::Error),
 }
