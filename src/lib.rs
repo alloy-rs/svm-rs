@@ -180,10 +180,10 @@ fn setup_version(version: &str) -> Result<(), SolcVmError> {
 
 #[cfg(test)]
 mod tests {
-    use std::process::Stdio;
     use crate::releases::all_releases;
     use rand::seq::SliceRandom;
     use std::process::Command;
+    use std::process::Stdio;
 
     use super::*;
 
@@ -203,14 +203,16 @@ mod tests {
     async fn test_version() {
         let version = "0.8.10".parse().unwrap();
         install(&version).await.unwrap();
-        let solc_path = version_path(version.to_string().as_str()).join(&format!("solc-{}", version));
+        let solc_path =
+            version_path(version.to_string().as_str()).join(&format!("solc-{}", version));
         println!("solc path {}", solc_path.display());
         let outout = Command::new(&solc_path)
             .arg("--version")
             .stdin(Stdio::piped())
             .stderr(Stdio::piped())
             .stdout(Stdio::piped())
-            .output().unwrap();
+            .output()
+            .unwrap();
 
         dbg!(outout);
     }
