@@ -4,11 +4,14 @@ use sha2::Digest;
 
 use std::{
     ffi::OsString,
-    fs::{self, Permissions},
+    fs,
     io::{Cursor, Write},
-    os::unix::fs::PermissionsExt,
     path::PathBuf,
 };
+
+/// Use permissions extensions on unix
+#[cfg(target_family = "unix")]
+use std::{fs::Permissions, os::unix::fs::PermissionsExt};
 
 mod error;
 pub use error::SolcVmError;
@@ -133,7 +136,10 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
         setup_version(version.to_string().as_str())?;
         let fname = version_path(version.to_string().as_str()).join(&format!("solc-{}", version));
         let f = fs::File::create(fname)?;
+
+        #[cfg(target_family = "unix")]
         f.set_permissions(Permissions::from_mode(0o777))?;
+
         f
     };
     let mut content = Cursor::new(binbytes);
@@ -174,8 +180,10 @@ fn setup_version(version: &str) -> Result<(), SolcVmError> {
 
 #[cfg(test)]
 mod tests {
+    use std::process::Stdio;
     use crate::releases::all_releases;
     use rand::seq::SliceRandom;
+    use std::process::Command;
 
     use super::*;
 
@@ -189,5 +197,21 @@ mod tests {
             .collect::<Vec<Version>>();
         let rand_version = versions.choose(&mut rand::thread_rng()).unwrap();
         assert!(install(&rand_version).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_version() {
+        let version = "0.8.10".parse().unwrap();
+        install(&version).await.unwrap();
+        let solc_path = version_path(version.to_string().as_str()).join(&format!("solc-{}", version));
+        println!("solc path {}", solc_path.display());
+        let outout = Command::new(&solc_path)
+            .arg("--version")
+            .stdin(Stdio::piped())
+            .stderr(Stdio::piped())
+            .stdout(Stdio::piped())
+            .output().unwrap();
+
+        dbg!(outout);
     }
 }
