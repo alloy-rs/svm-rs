@@ -5,6 +5,7 @@ use std::env;
 pub enum Platform {
     LinuxAmd64,
     MacOsAmd64,
+    WindowsAmd64,
     Unsupported,
 }
 
@@ -13,6 +14,7 @@ impl ToString for Platform {
         match self {
             Platform::LinuxAmd64 => "linux-amd64".to_string(),
             Platform::MacOsAmd64 => "macosx-amd64".to_string(),
+            Platform::WindowsAmd64 => "windows-amd64".to_string(),
             Platform::Unsupported => "Unsupported-platform".to_string(),
         }
     }
@@ -23,6 +25,7 @@ pub fn platform() -> Platform {
     match env::consts::OS {
         "linux" => Platform::LinuxAmd64,
         "macos" => Platform::MacOsAmd64,
+        "windows" => Platform::WindowsAmd64,
         _ => Platform::Unsupported,
     }
 }
@@ -41,5 +44,11 @@ mod tests {
     #[cfg(target_os = "macos")]
     fn get_platform() {
         assert_eq!(platform(), Platform::MacOsAmd64);
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn get_platform() {
+        assert_eq!(platform(), Platform::WindowsAmd64);
     }
 }
