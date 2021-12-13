@@ -205,8 +205,7 @@ mod tests {
         install(&version).await.unwrap();
         let solc_path =
             version_path(version.to_string().as_str()).join(&format!("solc-{}", version));
-        println!("solc path {}", solc_path.display());
-        let outout = Command::new(&solc_path)
+        let output = Command::new(&solc_path)
             .arg("--version")
             .stdin(Stdio::piped())
             .stderr(Stdio::piped())
@@ -214,6 +213,8 @@ mod tests {
             .output()
             .unwrap();
 
-        dbg!(outout);
+        assert!(String::from_utf8_lossy(&output.stdout)
+            .as_ref()
+            .contains("0.8.10"));
     }
 }

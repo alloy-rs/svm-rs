@@ -76,5 +76,5 @@ jobs:
         shell: cmd
 
       - name: test
-        run: cargo test -- --nocapture
+        run: cargo test
         shell: cmd
