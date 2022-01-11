@@ -1,27 +1,27 @@
+use clap::Parser;
 use dialoguer::Input;
 use semver::Version;
-use structopt::StructOpt;
 
 use std::collections::HashSet;
 
 mod print;
 
-#[derive(Debug, StructOpt)]
-#[structopt(name = "solc-vm", about = "Solc version manager")]
+#[derive(Debug, Parser)]
+#[clap(name = "solc-vm", about = "Solc version manager")]
 enum SolcVm {
-    #[structopt(about = "List all versions of Solc")]
+    #[clap(about = "List all versions of Solc")]
     List,
-    #[structopt(about = "Install Solc versions")]
+    #[clap(about = "Install Solc versions")]
     Install { versions: Vec<String> },
-    #[structopt(about = "Use a Solc version")]
+    #[clap(about = "Use a Solc version")]
     Use { version: String },
-    #[structopt(about = "Remove a Solc version")]
+    #[clap(about = "Remove a Solc version")]
     Remove { version: String },
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let opt = SolcVm::from_args();
+    let opt = SolcVm::parse();
 
     svm_lib::setup_home()?;
 
