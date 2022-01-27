@@ -22,10 +22,10 @@ impl ToString for Platform {
 
 /// Read the current machine's platform.
 pub fn platform() -> Platform {
-    match env::consts::OS {
-        "linux" => Platform::LinuxAmd64,
-        "macos" => Platform::MacOsAmd64,
-        "windows" => Platform::WindowsAmd64,
+    match (env::consts::OS, env::consts::ARCH) {
+        ("linux", "x86_64") => Platform::LinuxAmd64,
+        ("macos", "x86_64") => Platform::MacOsAmd64,
+        ("windows", "x86_64") => Platform::WindowsAmd64,
         _ => Platform::Unsupported,
     }
 }
@@ -35,19 +35,19 @@ mod tests {
     use super::*;
 
     #[test]
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
     fn get_platform() {
         assert_eq!(platform(), Platform::LinuxAmd64);
     }
 
     #[test]
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
     fn get_platform() {
         assert_eq!(platform(), Platform::MacOsAmd64);
     }
 
     #[test]
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
     fn get_platform() {
         assert_eq!(platform(), Platform::WindowsAmd64);
     }
