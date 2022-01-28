@@ -24,7 +24,9 @@ impl ToString for Platform {
 pub fn platform() -> Platform {
     match (env::consts::OS, env::consts::ARCH) {
         ("linux", "x86_64") => Platform::LinuxAmd64,
-        ("macos", "x86_64") => Platform::MacOsAmd64,
+        // NOTE: Relaxed requirement on target architecture here
+        // to support M1 macs with Rosetta
+        ("macos", _) => Platform::MacOsAmd64,
         ("windows", "x86_64") => Platform::WindowsAmd64,
         _ => Platform::Unsupported,
     }
@@ -42,6 +44,12 @@ mod tests {
 
     #[test]
     #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    fn get_platform() {
+        assert_eq!(platform(), Platform::MacOsAmd64);
+    }
+
+    #[test]
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     fn get_platform() {
         assert_eq!(platform(), Platform::MacOsAmd64);
     }
