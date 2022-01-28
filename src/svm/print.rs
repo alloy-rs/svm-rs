@@ -40,7 +40,7 @@ pub fn available_versions(versions: Vec<Version>) {
 pub fn installing_version(version: &Version) -> ProgressBar {
     let spinner = ProgressBar::new_spinner();
     spinner.enable_steady_tick(120);
-    spinner.set_message(format!("Downloading Solc {}", version.to_string()));
+    spinner.set_message(format!("Downloading Solc {}", version));
     spinner.set_style(
         ProgressStyle::default_spinner()
             .tick_strings(&[
@@ -55,18 +55,14 @@ pub fn installing_version(version: &Version) -> ProgressBar {
 pub fn unsupported_version(version: &Version) {
     println!(
         "{}",
-        style(format!("Version: {} unsupported", version.to_string())).red()
+        style(format!("Version: {} unsupported", version)).red()
     );
 }
 
 pub fn set_global_version(version: &Version) {
-    ProgressBar::new_spinner()
-        .finish_with_message(format!("Global version set: {}", version.to_string()));
+    ProgressBar::new_spinner().finish_with_message(format!("Global version set: {}", version));
 }
 
 pub fn version_not_found(version: &Version) {
-    println!(
-        "{}",
-        style(format!("Version: {} not found", version.to_string())).red()
-    );
+    println!("{}", style(format!("Version: {} not found", version)).red());
 }

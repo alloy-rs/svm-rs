@@ -76,7 +76,7 @@ async fn handle_install(version: Version) -> anyhow::Result<()> {
     let current_version = svm_lib::current_version()?;
 
     if installed_versions.contains(&version) {
-        println!("Solc {} is already installed", version.to_string());
+        println!("Solc {} is already installed", version);
         let input: String = Input::new()
             .with_prompt("Would you like to set it as the global version?")
             .with_initial_text("Y")
@@ -89,7 +89,7 @@ async fn handle_install(version: Version) -> anyhow::Result<()> {
     } else if all_versions.contains(&version) {
         let spinner = print::installing_version(&version);
         svm_lib::install(&version).await?;
-        spinner.finish_with_message(format!("Downloaded Solc: {}", version.to_string()));
+        spinner.finish_with_message(format!("Downloaded Solc: {}", version));
         if current_version.is_none() {
             svm_lib::use_version(&version)?;
             print::set_global_version(&version);
@@ -109,7 +109,7 @@ async fn handle_use(version: Version) -> anyhow::Result<()> {
         svm_lib::use_version(&version)?;
         print::set_global_version(&version);
     } else if all_versions.contains(&version) {
-        println!("Solc {} is not installed", version.to_string());
+        println!("Solc {} is not installed", version);
         let input: String = Input::new()
             .with_prompt("Would you like to install it?")
             .with_initial_text("Y")
