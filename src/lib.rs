@@ -2,13 +2,9 @@ use once_cell::sync::Lazy;
 use semver::Version;
 use sha2::Digest;
 
-use std::{
-    ffi::OsString,
-    fs,
-    io::{Cursor, Write},
-    path::PathBuf,
-};
+use std::{ffi::OsString, fs, io::Write, path::PathBuf};
 
+use std::io::BufWriter;
 /// Use permissions extensions on unix
 #[cfg(target_family = "unix")]
 use std::{fs::Permissions, os::unix::fs::PermissionsExt};
@@ -132,7 +128,7 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
         return Err(SolcVmError::ChecksumMismatch(version.to_string()));
     }
 
-    let mut dest = {
+    let dest = {
         setup_version(version.to_string().as_str())?;
         let fname = version_path(version.to_string().as_str()).join(&format!("solc-{}", version));
         let f = fs::File::create(fname)?;
@@ -142,8 +138,9 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
 
         f
     };
-    let mut content = Cursor::new(binbytes);
-    std::io::copy(&mut content, &mut dest)?;
+    let mut dest = BufWriter::new(dest);
+    dest.write_all(&binbytes)?;
+    dest.flush()?;
 
     Ok(())
 }
