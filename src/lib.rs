@@ -74,8 +74,8 @@ impl Installer {
 
 impl Drop for Installer {
     fn drop(&mut self) {
-        if self.lock.is_some() {
-            fs::remove_file(self.lock.as_ref().unwrap().as_path()).map_or_else(
+        if let Some(lock_path) = &self.lock {
+            fs::remove_file(lock_path.as_path()).map_or_else(
                 |e| tracing::event!(Level::DEBUG, "{}", e.to_string()),
                 |_| (),
             );
