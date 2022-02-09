@@ -1,7 +1,7 @@
-use log::debug;
 use once_cell::sync::Lazy;
 use semver::Version;
 use sha2::Digest;
+use tracing::Level;
 
 use std::{
     ffi::OsString,
@@ -145,7 +145,10 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
     // same version of solc.
     tokio::time::timeout(INSTALL_TIMEOUT, wait_for_lock(&lock_path))
         .await
-        .map_err(|_| SolcVmError::Timeout(version.to_string(), INSTALL_TIMEOUT.as_secs()))?;
+        .map_err(|_| {
+            tracing::event!(Level::DEBUG, "time out waiting for lock file");
+            SolcVmError::Timeout(version.to_string(), INSTALL_TIMEOUT.as_secs())
+        })?;
 
     let mut dest = {
         setup_version(version.to_string().as_str())?;
@@ -194,10 +197,12 @@ pub fn setup_home() -> Result<PathBuf, SolcVmError> {
 }
 
 async fn wait_for_lock(lock_path: &Path) {
+    let span = tracing::trace_span!("wait for lock file", ?lock_path);
+    let _enter = span.enter();
+
     let mut interval = tokio::time::interval(LOCKFILE_CHECK_INTERVAL);
     while lock_path.exists() {
         interval.tick().await;
-        debug!("waiting for lock file to be released");
     }
 }
 
