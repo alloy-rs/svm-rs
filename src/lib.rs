@@ -180,12 +180,30 @@ fn setup_version(version: &str) -> Result<(), SolcVmError> {
 
 #[cfg(test)]
 mod tests {
-    use crate::releases::all_releases;
+    use crate::{
+        platform::Platform,
+        releases::{all_releases, artifact_url},
+    };
     use rand::seq::SliceRandom;
+    use reqwest::Url;
     use std::process::Command;
     use std::process::Stdio;
 
     use super::*;
+
+    #[tokio::test]
+    async fn test_artifact_url() {
+        let version = Version::new(0, 5, 0);
+        let artifact = "solc-v0.5.0";
+        assert_eq!(
+            artifact_url(Platform::LinuxAarch64, &version, artifact).unwrap(),
+            Url::parse(&format!(
+                "https://github.com/nikitastupin/solc/raw/main/linux/aarch64/{}",
+                artifact
+            ))
+            .unwrap(),
+        )
+    }
 
     #[tokio::test]
     async fn test_install() {
@@ -196,7 +214,7 @@ mod tests {
             .into_keys()
             .collect::<Vec<Version>>();
         let rand_version = versions.choose(&mut rand::thread_rng()).unwrap();
-        assert!(install(&rand_version).await.is_ok());
+        assert!(install(rand_version).await.is_ok());
     }
 
     #[tokio::test]
