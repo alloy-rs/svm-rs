@@ -21,6 +21,8 @@ enum SolcVm {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    env_logger::init();
+
     let opt = SolcVm::parse();
 
     svm_lib::setup_home()?;

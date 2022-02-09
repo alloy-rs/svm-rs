@@ -1,3 +1,4 @@
+use log::debug;
 use once_cell::sync::Lazy;
 use semver::Version;
 use sha2::Digest;
@@ -6,7 +7,8 @@ use std::{
     ffi::OsString,
     fs,
     io::{Cursor, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
+    time::Duration,
 };
 
 /// Use permissions extensions on unix
@@ -21,6 +23,9 @@ pub use platform::platform;
 
 mod releases;
 pub use releases::{all_releases, Releases};
+
+static INSTALL_TIMEOUT: Duration = Duration::from_secs(10);
+static LOCKFILE_CHECK_INTERVAL: Duration = Duration::from_millis(500);
 
 /// Declare path to Solc Version Manager's home directory, "~/.svm" on Unix-based machines.
 pub static SVM_HOME: Lazy<PathBuf> = Lazy::new(|| {
@@ -132,18 +137,36 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
         return Err(SolcVmError::ChecksumMismatch(version.to_string()));
     }
 
+    let lock_path = SVM_HOME.join(&format!(".lock-solc-{}", version));
+    let version_path = version_path(version.to_string().as_str());
+    let solc_path = version_path.join(&format!("solc-{}", version));
+
+    // wait until lock file is released, possibly by another parallel thread trying to install the
+    // same version of solc.
+    tokio::time::timeout(INSTALL_TIMEOUT, wait_for_lock(&lock_path))
+        .await
+        .map_err(|_| SolcVmError::Timeout(version.to_string(), INSTALL_TIMEOUT.as_secs()))?;
+
     let mut dest = {
         setup_version(version.to_string().as_str())?;
-        let fname = version_path(version.to_string().as_str()).join(&format!("solc-{}", version));
-        let f = fs::File::create(fname)?;
+
+        let f = fs::File::create(&solc_path)?;
 
         #[cfg(target_family = "unix")]
         f.set_permissions(Permissions::from_mode(0o777))?;
 
         f
     };
+
+    // create lock file before copying contents.
+    fs::File::create(&lock_path)?;
+
+    // copy contents over
     let mut content = Cursor::new(binbytes);
     std::io::copy(&mut content, &mut dest)?;
+
+    // delete lock file
+    fs::remove_file(&lock_path)?;
 
     Ok(())
 }
@@ -168,6 +191,14 @@ pub fn setup_home() -> Result<PathBuf, SolcVmError> {
         fs::File::create(global_version.as_path())?;
     }
     Ok(home_dir)
+}
+
+async fn wait_for_lock(lock_path: &Path) {
+    let mut interval = tokio::time::interval(LOCKFILE_CHECK_INTERVAL);
+    while lock_path.exists() {
+        interval.tick().await;
+        debug!("waiting for lock file to be released");
+    }
 }
 
 fn setup_version(version: &str) -> Result<(), SolcVmError> {

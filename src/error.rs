@@ -13,6 +13,8 @@ pub enum SolcVmError {
     VersionNotInstalled(String),
     #[error("Checksum mismatch for version {0}")]
     ChecksumMismatch(String),
+    #[error("Install step for solc version {0} timed out after {1} seconds")]
+    Timeout(String, u64),
     #[error(transparent)]
     IoError(#[from] std::io::Error),
     #[error(transparent)]
