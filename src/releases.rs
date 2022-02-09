@@ -19,22 +19,16 @@ static OLD_VERSION_MAX: Lazy<Version> = Lazy::new(|| Version::new(0, 4, 9));
 static OLD_VERSION_MIN: Lazy<Version> = Lazy::new(|| Version::new(0, 4, 0));
 
 static OLD_SOLC_RELEASES: Lazy<Releases> = Lazy::new(|| {
-    serde_json::from_reader(
-        std::fs::File::open("./list/linux-arm64-old.json")
-            .expect("could not open list linux-arm64-old.json"),
-    )
-    .expect("could not parse list linux-arm64-old.json")
+    serde_json::from_str(include_str!("../list/linux-arm64-old.json"))
+        .expect("could not parse list linux-arm64-old.json")
 });
 
 static LINUX_AARCH64_URL_PREFIX: &str =
     "https://github.com/nikitastupin/solc/raw/3890b86a62fe6b8efd2f643f4adcd854f478b623/linux/aarch64";
 
 static LINUX_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
-    serde_json::from_reader(
-        std::fs::File::open("./list/linux-aarch64.json")
-            .expect("could not open list linux-aarch64.json"),
-    )
-    .expect("could not parse list linux-aarch64.json")
+    serde_json::from_str(include_str!("../list/linux-aarch64.json"))
+        .expect("could not parse list linux-aarch64.json")
 });
 
 /// Defines the struct that the JSON-formatted release list can be deserialized into.
