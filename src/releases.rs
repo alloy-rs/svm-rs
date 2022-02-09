@@ -27,7 +27,7 @@ static OLD_SOLC_RELEASES: Lazy<Releases> = Lazy::new(|| {
 });
 
 static LINUX_AARCH64_URL_PREFIX: &str =
-    "https://github.com/nikitastupin/solc/raw/main/linux/aarch64";
+    "https://github.com/nikitastupin/solc/raw/3890b86a62fe6b8efd2f643f4adcd854f478b623/linux/aarch64";
 
 static LINUX_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
     serde_json::from_reader(
