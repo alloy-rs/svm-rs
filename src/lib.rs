@@ -153,6 +153,10 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
     let mut dest = {
         setup_version(version.to_string().as_str())?;
 
+        // create lock file.
+        fs::File::create(&lock_path)?;
+
+        // create solc file.
         let f = fs::File::create(&solc_path)?;
 
         #[cfg(target_family = "unix")]
@@ -160,9 +164,6 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
 
         f
     };
-
-    // create lock file before copying contents.
-    fs::File::create(&lock_path)?;
 
     // copy contents over
     let mut content = Cursor::new(binbytes);
