@@ -41,6 +41,46 @@ pub static SVM_HOME: Lazy<PathBuf> = Lazy::new(|| {
     }
 });
 
+// Installer type that copies binary data to the appropriate solc binary file:
+// 1. create target file to copy binary data
+// 2. copy data
+// 3. lock file is removed when installer goes out of scope
+struct Installer {
+    // version of solc
+    version: Version,
+    // binary data of the solc executable
+    binbytes: Vec<u8>,
+    // optional lock to pause other threads from proceeding with installation of the same version
+    lock: Option<PathBuf>,
+}
+
+impl Installer {
+    fn install(&self) -> Result<(), SolcVmError> {
+        let version_path = version_path(self.version.to_string().as_str());
+        let solc_path = version_path.join(&format!("solc-{}", self.version));
+        // create solc file.
+        let mut f = fs::File::create(&solc_path)?;
+
+        #[cfg(target_family = "unix")]
+        f.set_permissions(Permissions::from_mode(0o777))?;
+
+        // copy contents over
+        let mut content = Cursor::new(&self.binbytes);
+        std::io::copy(&mut content, &mut f)?;
+
+        Ok(())
+    }
+}
+
+impl Drop for Installer {
+    fn drop(&mut self) {
+        if self.lock.is_some() {
+            fs::remove_file(self.lock.as_ref().unwrap().as_path())
+                .map_or_else(|e| panic!("{}", e.to_string()), |_| ());
+        }
+    }
+}
+
 /// Derive path to a specific Solc version's binary.
 pub fn version_path(version: &str) -> PathBuf {
     let mut version_path = SVM_HOME.to_path_buf();
@@ -137,9 +177,8 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
         return Err(SolcVmError::ChecksumMismatch(version.to_string()));
     }
 
+    // lock file to indicate that installation of this solc version will be in progress.
     let lock_path = SVM_HOME.join(&format!(".lock-solc-{}", version));
-    let version_path = version_path(version.to_string().as_str());
-    let solc_path = version_path.join(&format!("solc-{}", version));
 
     // wait until lock file is released, possibly by another parallel thread trying to install the
     // same version of solc.
@@ -150,29 +189,20 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
             SolcVmError::Timeout(version.to_string(), INSTALL_TIMEOUT.as_secs())
         })?;
 
-    let mut dest = {
+    let installer = {
         setup_version(version.to_string().as_str())?;
 
         // create lock file.
         fs::File::create(&lock_path)?;
 
-        // create solc file.
-        let f = fs::File::create(&solc_path)?;
-
-        #[cfg(target_family = "unix")]
-        f.set_permissions(Permissions::from_mode(0o777))?;
-
-        f
+        Installer {
+            version: version.clone(),
+            binbytes: binbytes.to_vec(),
+            lock: Some(lock_path.to_path_buf()),
+        }
     };
 
-    // copy contents over
-    let mut content = Cursor::new(binbytes);
-    std::io::copy(&mut content, &mut dest)?;
-
-    // delete lock file
-    fs::remove_file(&lock_path)?;
-
-    Ok(())
+    Ok(installer.install()?)
 }
 
 /// Removes the provided version of Solc from the machine.
