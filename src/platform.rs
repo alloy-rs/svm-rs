@@ -4,6 +4,7 @@ use std::env;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Platform {
     LinuxAmd64,
+    LinuxAarch64,
     MacOsAmd64,
     WindowsAmd64,
     Unsupported,
@@ -13,6 +14,7 @@ impl ToString for Platform {
     fn to_string(&self) -> String {
         match self {
             Platform::LinuxAmd64 => "linux-amd64".to_string(),
+            Platform::LinuxAarch64 => "linux-aarch64".to_string(),
             Platform::MacOsAmd64 => "macosx-amd64".to_string(),
             Platform::WindowsAmd64 => "windows-amd64".to_string(),
             Platform::Unsupported => "Unsupported-platform".to_string(),
@@ -24,6 +26,7 @@ impl ToString for Platform {
 pub fn platform() -> Platform {
     match (env::consts::OS, env::consts::ARCH) {
         ("linux", "x86_64") => Platform::LinuxAmd64,
+        ("linux", "aarch64") => Platform::LinuxAarch64,
         // NOTE: Relaxed requirement on target architecture here
         // to support M1 macs with Rosetta
         ("macos", _) => Platform::MacOsAmd64,
