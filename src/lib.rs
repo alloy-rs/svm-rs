@@ -140,17 +140,53 @@ pub fn installed_versions() -> Result<Vec<Version>, SolcVmError> {
     Ok(versions)
 }
 
+/// Blocking version of [`all_versions`]
+#[cfg(feature = "blocking")]
+pub fn block_all_versions() -> Result<Vec<Version>, SolcVmError> {
+    Ok(releases::blocking_all_releases(platform::platform())?.into_versions())
+}
+
 /// Fetches the list of all the available versions of Solc. The list is platform dependent, so
 /// different versions can be found for macosx vs linux.
 pub async fn all_versions() -> Result<Vec<Version>, SolcVmError> {
-    let mut releases = releases::all_releases(platform::platform())
+    Ok(releases::all_releases(platform::platform())
         .await?
-        .releases
-        .keys()
-        .cloned()
-        .collect::<Vec<Version>>();
-    releases.sort();
-    Ok(releases)
+        .into_versions())
+}
+
+/// Blocking version of [`install`]
+#[cfg(feature = "blocking")]
+pub fn blocking_install(version: &Version) -> Result<(), SolcVmError> {
+    setup_home()?;
+
+    let artifacts = releases::blocking_all_releases(platform::platform())?;
+    let artifact = artifacts
+        .get_artifact(version)
+        .ok_or(SolcVmError::UnknownVersion)?;
+    let download_url =
+        releases::artifact_url(platform::platform(), version, artifact.to_string().as_str())?;
+
+    let checksum = artifacts
+        .get_checksum(version)
+        .unwrap_or_else(|| panic!("checksum not available: {:?}", version.to_string()));
+
+    let res = reqwest::blocking::get(download_url)?;
+    let binbytes = res.bytes()?;
+    ensure_checksum(&binbytes, version, checksum)?;
+
+    // lock file to indicate that installation of this solc version will be in progress.
+    let lock_path = SVM_HOME.join(&format!(".lock-solc-{}", version));
+
+    // wait until lock file is released, possibly by another parallel thread trying to install the
+    // same version of solc.
+    if !blocking_wait_for_lock(&lock_path) {
+        return Err(SolcVmError::Timeout(
+            version.to_string(),
+            INSTALL_TIMEOUT.as_secs(),
+        ));
+    }
+
+    do_install(version.clone(), binbytes.to_vec(), lock_path)
 }
 
 /// Installs the provided version of Solc in the machine.
@@ -165,19 +201,13 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
     let download_url =
         releases::artifact_url(platform::platform(), version, artifact.to_string().as_str())?;
 
-    let res = reqwest::get(download_url).await?;
-    let binbytes = res.bytes().await?;
-    let mut hasher = sha2::Sha256::new();
-    hasher.update(&binbytes);
-    let cs = &hasher.finalize()[..];
     let checksum = artifacts
         .get_checksum(version)
         .unwrap_or_else(|| panic!("checksum not available: {:?}", version.to_string()));
 
-    // checksum does not match
-    if cs != checksum {
-        return Err(SolcVmError::ChecksumMismatch(version.to_string()));
-    }
+    let res = reqwest::get(download_url).await?;
+    let binbytes = res.bytes().await?;
+    ensure_checksum(&binbytes, version, checksum)?;
 
     // lock file to indicate that installation of this solc version will be in progress.
     let lock_path = SVM_HOME.join(&format!(".lock-solc-{}", version));
@@ -191,6 +221,10 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
             SolcVmError::Timeout(version.to_string(), INSTALL_TIMEOUT.as_secs())
         })?;
 
+    do_install(version.clone(), binbytes.to_vec(), lock_path)
+}
+
+fn do_install(version: Version, binbytes: Vec<u8>, lock_path: PathBuf) -> Result<(), SolcVmError> {
     let installer = {
         setup_version(version.to_string().as_str())?;
 
@@ -198,13 +232,13 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
         fs::File::create(&lock_path)?;
 
         Installer {
-            version: version.clone(),
-            binbytes: binbytes.to_vec(),
-            lock: Some(lock_path.to_path_buf()),
+            version,
+            binbytes,
+            lock: Some(lock_path),
         }
     };
 
-    Ok(installer.install()?)
+    installer.install()
 }
 
 /// Removes the provided version of Solc from the machine.
@@ -229,6 +263,23 @@ pub fn setup_home() -> Result<PathBuf, SolcVmError> {
     Ok(home_dir)
 }
 
+/// Returns `true` if lock is ready and `false` if timed out
+#[cfg(feature = "blocking")]
+fn blocking_wait_for_lock(lock_path: &Path) -> bool {
+    let span = tracing::trace_span!("wait for lock file", ?lock_path);
+    let _enter = span.enter();
+
+    let deadline = std::time::Instant::now() + INSTALL_TIMEOUT;
+    while lock_path.exists() {
+        if std::time::Instant::now() > deadline {
+            return false;
+        }
+        tracing::event!(Level::DEBUG, "time out waiting for lock file");
+        std::thread::sleep(LOCKFILE_CHECK_INTERVAL);
+    }
+    true
+}
+
 async fn wait_for_lock(lock_path: &Path) {
     let span = tracing::trace_span!("wait for lock file", ?lock_path);
     let _enter = span.enter();
@@ -243,6 +294,21 @@ fn setup_version(version: &str) -> Result<(), SolcVmError> {
     let v = version_path(version);
     if !v.exists() {
         fs::create_dir_all(v.as_path())?
+    }
+    Ok(())
+}
+
+fn ensure_checksum(
+    binbytes: impl AsRef<[u8]>,
+    version: &Version,
+    expected_checksum: Vec<u8>,
+) -> Result<(), SolcVmError> {
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(binbytes);
+    let cs = &hasher.finalize()[..];
+    // checksum does not match
+    if cs != expected_checksum {
+        return Err(SolcVmError::ChecksumMismatch(version.to_string()));
     }
     Ok(())
 }
@@ -286,10 +352,40 @@ mod tests {
         assert!(install(rand_version).await.is_ok());
     }
 
+    #[cfg(feature = "blocking")]
+    #[test]
+    fn blocking_test_install() {
+        let versions = crate::releases::blocking_all_releases(platform::platform())
+            .unwrap()
+            .into_versions();
+        let rand_version = versions.choose(&mut rand::thread_rng()).unwrap();
+        assert!(blocking_install(rand_version).is_ok());
+    }
+
     #[tokio::test]
     async fn test_version() {
         let version = "0.8.10".parse().unwrap();
         install(&version).await.unwrap();
+        let solc_path =
+            version_path(version.to_string().as_str()).join(&format!("solc-{}", version));
+        let output = Command::new(&solc_path)
+            .arg("--version")
+            .stdin(Stdio::piped())
+            .stderr(Stdio::piped())
+            .stdout(Stdio::piped())
+            .output()
+            .unwrap();
+
+        assert!(String::from_utf8_lossy(&output.stdout)
+            .as_ref()
+            .contains("0.8.10"));
+    }
+
+    #[cfg(feature = "blocking")]
+    #[test]
+    fn blocking_test_version() {
+        let version = "0.8.10".parse().unwrap();
+        blocking_install(&version).unwrap();
         let solc_path =
             version_path(version.to_string().as_str()).join(&format!("solc-{}", version));
         let output = Command::new(&solc_path)
