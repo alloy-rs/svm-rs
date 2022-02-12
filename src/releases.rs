@@ -65,6 +65,18 @@ impl Releases {
         }
         None
     }
+
+    /// Returns the artifact of the version if any
+    pub fn get_artifact(&self, version: &Version) -> Option<&String> {
+        self.releases.get(version)
+    }
+
+    /// Returns a sorted list of all versions
+    pub fn into_versions(self) -> Vec<Version> {
+        let mut versions = self.releases.into_keys().collect::<Vec<_>>();
+        versions.sort_unstable();
+        versions
+    }
 }
 
 /// Build info contains the SHA256 checksum of a solc binary.
@@ -107,6 +119,22 @@ where
     Ok(v.into_iter().map(|(Wrapper(k), v)| (k, v)).collect())
 }
 
+/// Blocking version fo [`all_realeases`]
+#[cfg(feature = "blocking")]
+pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
+    if platform == Platform::LinuxAarch64 {
+        return Ok(LINUX_AARCH64_RELEASES.clone());
+    }
+
+    let releases = reqwest::blocking::get(format!(
+        "{}/{}/list.json",
+        SOLC_RELEASES_URL,
+        platform.to_string()
+    ))?
+    .json::<Releases>()?;
+    Ok(unified_releases(releases, platform))
+}
+
 /// Fetch all releases available for the provided platform.
 pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
     if platform == Platform::LinuxAarch64 {
@@ -122,14 +150,19 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
     .json::<Releases>()
     .await?;
 
+    Ok(unified_releases(releases, platform))
+}
+
+/// unifies the releases with old releases if on linux
+fn unified_releases(releases: Releases, platform: Platform) -> Releases {
     if platform == Platform::LinuxAmd64 {
         let mut all_releases = OLD_SOLC_RELEASES.clone();
         all_releases.builds.extend(releases.builds);
         all_releases.releases.extend(releases.releases);
-        return Ok(all_releases);
+        all_releases
+    } else {
+        releases
     }
-
-    Ok(releases)
 }
 
 /// Construct the URL to the Solc binary for the specified release version and target platform.
