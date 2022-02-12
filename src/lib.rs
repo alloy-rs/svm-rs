@@ -142,7 +142,7 @@ pub fn installed_versions() -> Result<Vec<Version>, SolcVmError> {
 
 /// Blocking version of [`all_versions`]
 #[cfg(feature = "blocking")]
-pub fn block_all_versions() -> Result<Vec<Version>, SolcVmError> {
+pub fn blocking_all_versions() -> Result<Vec<Version>, SolcVmError> {
     Ok(releases::blocking_all_releases(platform::platform())?.into_versions())
 }
 
