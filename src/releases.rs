@@ -3,9 +3,9 @@ use reqwest::get;
 use semver::Version;
 use serde::{
     de::{self, Deserializer},
-    Deserialize,
+    Deserialize, Serialize,
 };
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use url::Url;
 
 use crate::{error::SolcVmError, platform::Platform};
@@ -48,11 +48,10 @@ static LINUX_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
 /// }
 ///
 /// Both the key and value are deserialized into semver::Version.
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct Releases {
     pub builds: Vec<BuildInfo>,
-    #[serde(deserialize_with = "de_releases")]
-    pub releases: HashMap<Version, String>,
+    pub releases: BTreeMap<Version, String>,
 }
 
 impl Releases {
@@ -80,43 +79,34 @@ impl Releases {
 }
 
 /// Build info contains the SHA256 checksum of a solc binary.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BuildInfo {
-    #[serde(deserialize_with = "version_from_string")]
     pub version: Version,
-    #[serde(deserialize_with = "from_hex_string")]
+    #[serde(with = "hex_string")]
     pub sha256: Vec<u8>,
 }
 
-/// Helper to parse hex string to a vector.
-fn from_hex_string<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let str_hex = String::deserialize(deserializer)?;
-    let str_hex = str_hex.trim_start_matches("0x");
-    hex::decode(str_hex).map_err(|err| de::Error::custom(err.to_string()))
-}
+/// Helper serde module to serialize and deserialize bytes as hex.
+mod hex_string {
+    use super::*;
+    use serde::Serializer;
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let str_hex = String::deserialize(deserializer)?;
+        let str_hex = str_hex.trim_start_matches("0x");
+        hex::decode(str_hex).map_err(|err| de::Error::custom(err.to_string()))
+    }
 
-/// Helper to parse string to semver::Version.
-fn version_from_string<'de, D>(deserializer: D) -> Result<Version, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let str_version = String::deserialize(deserializer)?;
-    Version::parse(&str_version).map_err(|err| de::Error::custom(err.to_string()))
-}
-
-/// Custom deserializer that deserializes a map of <String, String> to <Version, Version>.
-fn de_releases<'de, D>(deserializer: D) -> Result<HashMap<Version, String>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    #[derive(PartialEq, Eq, Hash, Deserialize)]
-    struct Wrapper(#[serde(deserialize_with = "version_from_string")] Version);
-
-    let v = HashMap::<Wrapper, String>::deserialize(deserializer)?;
-    Ok(v.into_iter().map(|(Wrapper(k), v)| (k, v)).collect())
+    pub fn serialize<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+        T: AsRef<[u8]>,
+    {
+        let value = hex::encode(value);
+        serializer.serialize_str(&value)
+    }
 }
 
 /// Blocking version fo [`all_realeases`]
@@ -234,5 +224,13 @@ mod tests {
     #[tokio::test]
     async fn test_all_releases_linux() {
         assert!(all_releases(Platform::LinuxAmd64).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn releases_roundtrip() {
+        let releases = all_releases(Platform::LinuxAmd64).await.unwrap();
+        let s = serde_json::to_string(&releases).unwrap();
+        let de_releases: Releases = serde_json::from_str(&s).unwrap();
+        assert_eq!(releases, de_releases);
     }
 }
