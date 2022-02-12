@@ -22,7 +22,10 @@ mod platform;
 pub use platform::platform;
 
 mod releases;
-pub use releases::{all_releases, blocking_all_releases, Releases};
+pub use releases::{all_releases, Releases};
+
+#[cfg(feature = "blocking")]
+pub use releases::blocking_all_releases;
 
 static INSTALL_TIMEOUT: Duration = Duration::from_secs(10);
 static LOCKFILE_CHECK_INTERVAL: Duration = Duration::from_millis(500);
