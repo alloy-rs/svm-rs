@@ -7,10 +7,20 @@
     {
       "version": "0.8.11",
       "sha256": "519d8bde19c8a64674d3113a4d47a16702ae1bf052375c78cb639f5932758ccc"
+    },
+    {
+      "version": "0.8.10",
+      "sha256": "760715f08bf6921ffffd5c3535f99d5dc8e6f766b57e1dd93649f5514aeaa3eb"
+    },
+    {
+      "version": "0.8.9",
+      "sha256": "bf7d3e1db1d5f1f6eaf8c82abd2751b32f2961b5fc8e03c2e2146c38574f2993"
     }
   ],
   "releases": {
     "0.8.12": "solc-v0.8.12",
-    "0.8.11": "solc-v0.8.11"
+    "0.8.11": "solc-v0.8.11",
+    "0.8.10": "solc-v0.8.10",
+    "0.8.9": "solc-v0.8.9"
   }
 }

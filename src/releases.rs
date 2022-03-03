@@ -33,7 +33,7 @@ static LINUX_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
 });
 
 static MACOS_AARCH64_URL_PREFIX: &str =
-    "https://github.com/roynalnaruto/solc-builds/raw/cc054eda7fb83d761ea900c3138f97efedc4eb8f/macosx/aarch64";
+    "https://github.com/roynalnaruto/solc-builds/raw/eb96e79ee82860a55c0bae4fd1c2f279f2c2035c/macosx/aarch64";
 
 static MACOS_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
     serde_json::from_str(include_str!("../list/macosx-aarch64.json"))
@@ -243,14 +243,30 @@ mod tests {
         assert_eq!(LINUX_AARCH64_RELEASES.builds.len(), 43);
     }
 
+    #[test]
+    fn test_macos_aarch64() {
+        assert_eq!(MACOS_AARCH64_RELEASES.releases.len(), 4);
+        assert_eq!(MACOS_AARCH64_RELEASES.builds.len(), 4);
+    }
+
     #[tokio::test]
-    async fn test_all_releases_macos() {
+    async fn test_all_releases_macos_amd64() {
         assert!(all_releases(Platform::MacOsAmd64).await.is_ok());
     }
 
     #[tokio::test]
-    async fn test_all_releases_linux() {
+    async fn test_all_releases_macos_aarch64() {
+        assert!(all_releases(Platform::MacOsAarch64).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_all_releases_linux_amd64() {
         assert!(all_releases(Platform::LinuxAmd64).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_all_releases_linux_aarch64() {
+        assert!(all_releases(Platform::LinuxAarch64).await.is_ok());
     }
 
     #[tokio::test]
