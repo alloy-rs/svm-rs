@@ -324,8 +324,8 @@ mod tests {
     };
     use rand::seq::SliceRandom;
     use reqwest::Url;
-    use std::process::Command;
-    use std::process::Stdio;
+
+    use std::process::{Command, Stdio};
 
     use super::*;
 
@@ -345,7 +345,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_install() {
-        let versions = all_releases(platform::platform())
+        let versions = all_releases(platform())
             .await
             .unwrap()
             .releases

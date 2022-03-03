@@ -11,6 +11,7 @@ use url::Url;
 use crate::{error::SolcVmError, platform::Platform};
 
 const SOLC_RELEASES_URL: &str = "https://binaries.soliditylang.org";
+
 const OLD_SOLC_RELEASES_DOWNLOAD_PREFIX: &str =
     "https://raw.githubusercontent.com/crytic/solc/master/linux/amd64";
 
@@ -29,6 +30,14 @@ static LINUX_AARCH64_URL_PREFIX: &str =
 static LINUX_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
     serde_json::from_str(include_str!("../list/linux-aarch64.json"))
         .expect("could not parse list linux-aarch64.json")
+});
+
+static MACOS_AARCH64_URL_PREFIX: &str =
+    "https://github.com/roynalnaruto/solc-builds/raw/eb96e79ee82860a55c0bae4fd1c2f279f2c2035c/macosx/aarch64";
+
+static MACOS_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
+    serde_json::from_str(include_str!("../list/macosx-aarch64.json"))
+        .expect("could not parse list macosx-aarch64.json")
 });
 
 /// Defines the struct that the JSON-formatted release list can be deserialized into.
@@ -131,6 +140,10 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
         return Ok(LINUX_AARCH64_RELEASES.clone());
     }
 
+    if platform == Platform::MacOsAarch64 {
+        return Ok(MACOS_AARCH64_RELEASES.clone());
+    }
+
     let releases = get(format!(
         "{}/{}/list.json",
         SOLC_RELEASES_URL,
@@ -192,6 +205,20 @@ pub fn artifact_url(
         ));
     }
 
+    if platform == Platform::MacOsAarch64 {
+        if MACOS_AARCH64_RELEASES.releases.contains_key(version) {
+            return Ok(Url::parse(&format!(
+                "{}/{}",
+                MACOS_AARCH64_URL_PREFIX, artifact
+            ))?);
+        } else {
+            return Err(SolcVmError::UnsupportedVersion(
+                version.to_string(),
+                platform.to_string(),
+            ));
+        }
+    }
+
     Ok(Url::parse(&format!(
         "{}/{}/{}",
         SOLC_RELEASES_URL,
@@ -216,14 +243,30 @@ mod tests {
         assert_eq!(LINUX_AARCH64_RELEASES.builds.len(), 43);
     }
 
+    #[test]
+    fn test_macos_aarch64() {
+        assert_eq!(MACOS_AARCH64_RELEASES.releases.len(), 4);
+        assert_eq!(MACOS_AARCH64_RELEASES.builds.len(), 4);
+    }
+
     #[tokio::test]
-    async fn test_all_releases_macos() {
+    async fn test_all_releases_macos_amd64() {
         assert!(all_releases(Platform::MacOsAmd64).await.is_ok());
     }
 
     #[tokio::test]
-    async fn test_all_releases_linux() {
+    async fn test_all_releases_macos_aarch64() {
+        assert!(all_releases(Platform::MacOsAarch64).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_all_releases_linux_amd64() {
         assert!(all_releases(Platform::LinuxAmd64).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_all_releases_linux_aarch64() {
+        assert!(all_releases(Platform::LinuxAarch64).await.is_ok());
     }
 
     #[tokio::test]
