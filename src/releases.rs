@@ -124,7 +124,7 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError
     if platform == Platform::LinuxAarch64 {
         return Ok(LINUX_AARCH64_RELEASES.clone());
     }
-    
+
     if platform == Platform::MacOsAarch64 {
         return Ok(MACOS_AARCH64_RELEASES.clone());
     }
