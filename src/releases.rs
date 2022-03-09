@@ -125,6 +125,10 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError
         return Ok(LINUX_AARCH64_RELEASES.clone());
     }
 
+    if platform == Platform::MacOsAarch64 {
+        return Ok(MACOS_AARCH64_RELEASES.clone());
+    }
+
     let releases = reqwest::blocking::get(format!(
         "{}/{}/list.json",
         SOLC_RELEASES_URL,
