@@ -249,8 +249,8 @@ mod tests {
 
     #[test]
     fn test_macos_aarch64() {
-        assert_eq!(MACOS_AARCH64_RELEASES.releases.len(), 4);
-        assert_eq!(MACOS_AARCH64_RELEASES.builds.len(), 4);
+        assert_eq!(MACOS_AARCH64_RELEASES.releases.len(), 5);
+        assert_eq!(MACOS_AARCH64_RELEASES.builds.len(), 5);
     }
 
     #[tokio::test]
