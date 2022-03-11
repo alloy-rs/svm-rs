@@ -33,7 +33,7 @@ static LINUX_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
 });
 
 static MACOS_AARCH64_URL_PREFIX: &str =
-    "https://github.com/roynalnaruto/solc-builds/raw/eb96e79ee82860a55c0bae4fd1c2f279f2c2035c/macosx/aarch64";
+    "https://github.com/roynalnaruto/solc-builds/raw/d1388e554684c5a10954d0c80182e671c4fc2ade/macosx/aarch64";
 
 static MACOS_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
     serde_json::from_str(include_str!("../list/macosx-aarch64.json"))
