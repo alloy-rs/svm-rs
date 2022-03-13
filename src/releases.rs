@@ -32,6 +32,8 @@ static LINUX_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
         .expect("could not parse list linux-aarch64.json")
 });
 
+static MACOS_AARCH64_NATIVE: Lazy<Version> = Lazy::new(|| Version::new(0, 8, 5));
+
 static MACOS_AARCH64_URL_PREFIX: &str =
     "https://github.com/roynalnaruto/solc-builds/raw/44694969a8ab050e620b8685e4e1d6a69167fc17/macosx/aarch64";
 
@@ -124,7 +126,29 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError
     }
 
     if platform == Platform::MacOsAarch64 {
-        return Ok(reqwest::blocking::get(MACOS_AARCH64_RELEASES_URL)?.json::<Releases>()?);
+        // The supported versions for both macos-amd64 and macos-aarch64 are the same.
+        //
+        // 1. For version >= 0.8.5 we fetch native releases from
+        // https://github.com/roynalnaruto/solc-builds
+        //
+        // 2. For version <= 0.8.4 we fetch releases from https://binaries.soliditylang.org and
+        // require Rosetta support.
+        let mut native = reqwest::blocking::get(MACOS_AARCH64_RELEASES_URL)?.json::<Releases>()?;
+        let mut releases = reqwest::blocking::get(format!(
+            "{}/{}/list.json",
+            SOLC_RELEASES_URL,
+            Platform::MacOsAmd64.to_string(),
+        ))?
+        .json::<Releases>()?;
+        releases.builds = releases
+            .builds
+            .iter()
+            .filter(|b| b.version.le(&MACOS_AARCH64_NATIVE))
+            .cloned()
+            .collect();
+        releases.builds.extend_from_slice(&native.builds);
+        releases.releases.append(&mut native.releases);
+        return Ok(releases);
     }
 
     let releases = reqwest::blocking::get(format!(
@@ -143,10 +167,34 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
     }
 
     if platform == Platform::MacOsAarch64 {
-        return Ok(get(MACOS_AARCH64_RELEASES_URL)
+        // The supported versions for both macos-amd64 and macos-aarch64 are the same.
+        //
+        // 1. For version >= 0.8.5 we fetch native releases from
+        // https://github.com/roynalnaruto/solc-builds
+        //
+        // 2. For version <= 0.8.4 we fetch releases from https://binaries.soliditylang.org and
+        // require Rosetta support.
+        let mut native = get(MACOS_AARCH64_RELEASES_URL)
             .await?
             .json::<Releases>()
-            .await?);
+            .await?;
+        let mut releases = get(format!(
+            "{}/{}/list.json",
+            SOLC_RELEASES_URL,
+            Platform::MacOsAmd64.to_string(),
+        ))
+        .await?
+        .json::<Releases>()
+        .await?;
+        releases.builds = releases
+            .builds
+            .iter()
+            .filter(|b| b.version.le(&MACOS_AARCH64_NATIVE))
+            .cloned()
+            .collect();
+        releases.builds.extend_from_slice(&native.builds);
+        releases.releases.append(&mut native.releases);
+        return Ok(releases);
     }
 
     let releases = get(format!(
@@ -211,10 +259,19 @@ pub fn artifact_url(
     }
 
     if platform == Platform::MacOsAarch64 {
-        return Ok(Url::parse(&format!(
-            "{}/{}",
-            MACOS_AARCH64_URL_PREFIX, artifact
-        ))?);
+        if version.ge(&MACOS_AARCH64_NATIVE) {
+            return Ok(Url::parse(&format!(
+                "{}/{}",
+                MACOS_AARCH64_URL_PREFIX, artifact
+            ))?);
+        } else {
+            return Ok(Url::parse(&format!(
+                "{}/{}/{}",
+                SOLC_RELEASES_URL,
+                Platform::MacOsAmd64.to_string(),
+                artifact,
+            ))?);
+        }
     }
 
     Ok(Url::parse(&format!(
@@ -239,6 +296,29 @@ mod tests {
     fn test_linux_aarch64() {
         assert_eq!(LINUX_AARCH64_RELEASES.releases.len(), 43);
         assert_eq!(LINUX_AARCH64_RELEASES.builds.len(), 43);
+    }
+
+    #[tokio::test]
+    async fn test_macos_aarch64() {
+        let releases = all_releases(Platform::MacOsAarch64)
+            .await
+            .expect("could not fetch releases for macos-aarch64");
+        let rosetta = Version::new(0, 8, 4);
+        let native = MACOS_AARCH64_NATIVE.clone();
+        let url1 = artifact_url(
+            Platform::MacOsAarch64,
+            &rosetta,
+            releases.get_artifact(&rosetta).unwrap(),
+        )
+        .expect("could not fetch artifact URL");
+        let url2 = artifact_url(
+            Platform::MacOsAarch64,
+            &native,
+            releases.get_artifact(&native).unwrap(),
+        )
+        .expect("could not fetch artifact URL");
+        assert!(url1.to_string().contains(SOLC_RELEASES_URL));
+        assert!(url2.to_string().contains(MACOS_AARCH64_URL_PREFIX));
     }
 
     #[tokio::test]
