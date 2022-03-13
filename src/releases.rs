@@ -33,12 +33,10 @@ static LINUX_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
 });
 
 static MACOS_AARCH64_URL_PREFIX: &str =
-    "https://github.com/roynalnaruto/solc-builds/raw/d1388e554684c5a10954d0c80182e671c4fc2ade/macosx/aarch64";
+    "https://github.com/roynalnaruto/solc-builds/raw/e8691a8b9e103ada10535b23a4a9f49e6fc46779/macosx/aarch64";
 
-static MACOS_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
-    serde_json::from_str(include_str!("../list/macosx-aarch64.json"))
-        .expect("could not parse list macosx-aarch64.json")
-});
+static MACOS_AARCH64_RELEASES_URL: &str =
+    "https://github.com/roynalnaruto/solc-builds/raw/e8691a8b9e103ada10535b23a4a9f49e6fc46779/macosx/aarch64/list.json";
 
 /// Defines the struct that the JSON-formatted release list can be deserialized into.
 ///
@@ -126,7 +124,7 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError
     }
 
     if platform == Platform::MacOsAarch64 {
-        return Ok(MACOS_AARCH64_RELEASES.clone());
+        return Ok(reqwest::blocking::get(MACOS_AARCH64_RELEASES_URL)?.json::<Releases>()?);
     }
 
     let releases = reqwest::blocking::get(format!(
@@ -145,7 +143,10 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
     }
 
     if platform == Platform::MacOsAarch64 {
-        return Ok(MACOS_AARCH64_RELEASES.clone());
+        return Ok(get(MACOS_AARCH64_RELEASES_URL)
+            .await?
+            .json::<Releases>()
+            .await?);
     }
 
     let releases = get(format!(
@@ -210,17 +211,10 @@ pub fn artifact_url(
     }
 
     if platform == Platform::MacOsAarch64 {
-        if MACOS_AARCH64_RELEASES.releases.contains_key(version) {
-            return Ok(Url::parse(&format!(
-                "{}/{}",
-                MACOS_AARCH64_URL_PREFIX, artifact
-            ))?);
-        } else {
-            return Err(SolcVmError::UnsupportedVersion(
-                version.to_string(),
-                platform.to_string(),
-            ));
-        }
+        return Ok(Url::parse(&format!(
+            "{}/{}",
+            MACOS_AARCH64_URL_PREFIX, artifact
+        ))?);
     }
 
     Ok(Url::parse(&format!(
@@ -245,12 +239,6 @@ mod tests {
     fn test_linux_aarch64() {
         assert_eq!(LINUX_AARCH64_RELEASES.releases.len(), 43);
         assert_eq!(LINUX_AARCH64_RELEASES.builds.len(), 43);
-    }
-
-    #[test]
-    fn test_macos_aarch64() {
-        assert_eq!(MACOS_AARCH64_RELEASES.releases.len(), 5);
-        assert_eq!(MACOS_AARCH64_RELEASES.builds.len(), 5);
     }
 
     #[tokio::test]
