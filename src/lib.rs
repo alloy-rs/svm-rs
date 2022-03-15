@@ -58,7 +58,8 @@ struct Installer {
 }
 
 impl Installer {
-    fn install(&self) -> Result<(), SolcVmError> {
+    /// Installs the solc version at the version specific destination and returns the path to the installed solc file.
+    fn install(&self) -> Result<PathBuf, SolcVmError> {
         let version_path = version_path(self.version.to_string().as_str());
         let solc_path = version_path.join(&format!("solc-{}", self.version));
         // create solc file.
@@ -71,7 +72,7 @@ impl Installer {
         let mut content = Cursor::new(&self.binbytes);
         std::io::copy(&mut content, &mut f)?;
 
-        Ok(())
+        Ok(solc_path)
     }
 }
 
@@ -159,7 +160,7 @@ pub async fn all_versions() -> Result<Vec<Version>, SolcVmError> {
 
 /// Blocking version of [`install`]
 #[cfg(feature = "blocking")]
-pub fn blocking_install(version: &Version) -> Result<(), SolcVmError> {
+pub fn blocking_install(version: &Version) -> Result<PathBuf, SolcVmError> {
     setup_home()?;
 
     let artifacts = releases::blocking_all_releases(platform::platform())?;
@@ -193,7 +194,9 @@ pub fn blocking_install(version: &Version) -> Result<(), SolcVmError> {
 }
 
 /// Installs the provided version of Solc in the machine.
-pub async fn install(version: &Version) -> Result<(), SolcVmError> {
+///
+/// Returns the path to the solc file.
+pub async fn install(version: &Version) -> Result<PathBuf, SolcVmError> {
     setup_home()?;
 
     let artifacts = releases::all_releases(platform::platform()).await?;
@@ -227,7 +230,11 @@ pub async fn install(version: &Version) -> Result<(), SolcVmError> {
     do_install(version.clone(), binbytes.to_vec(), lock_path)
 }
 
-fn do_install(version: Version, binbytes: Vec<u8>, lock_path: PathBuf) -> Result<(), SolcVmError> {
+fn do_install(
+    version: Version,
+    binbytes: Vec<u8>,
+    lock_path: PathBuf,
+) -> Result<PathBuf, SolcVmError> {
     let installer = {
         setup_version(version.to_string().as_str())?;
 
