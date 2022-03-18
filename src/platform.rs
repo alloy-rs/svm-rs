@@ -1,4 +1,5 @@
-use std::env;
+use std::fmt::Formatter;
+use std::{env, fmt};
 
 /// Types of supported platforms.
 #[derive(Clone, Debug, PartialEq)]
@@ -11,16 +12,17 @@ pub enum Platform {
     Unsupported,
 }
 
-impl ToString for Platform {
-    fn to_string(&self) -> String {
-        match self {
-            Platform::LinuxAmd64 => "linux-amd64".to_string(),
-            Platform::LinuxAarch64 => "linux-aarch64".to_string(),
-            Platform::MacOsAmd64 => "macosx-amd64".to_string(),
-            Platform::MacOsAarch64 => "macosx-aarch64".to_string(),
-            Platform::WindowsAmd64 => "windows-amd64".to_string(),
-            Platform::Unsupported => "Unsupported-platform".to_string(),
-        }
+impl fmt::Display for Platform {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Platform::LinuxAmd64 => "linux-amd64",
+            Platform::LinuxAarch64 => "linux-aarch64",
+            Platform::MacOsAmd64 => "macosx-amd64",
+            Platform::MacOsAarch64 => "macosx-aarch64",
+            Platform::WindowsAmd64 => "windows-amd64",
+            Platform::Unsupported => "Unsupported-platform",
+        };
+        f.write_str(s)
     }
 }
 

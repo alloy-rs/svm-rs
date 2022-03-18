@@ -57,3 +57,7 @@ openssl = ["reqwest/native-tls"]
 rustls = ["reqwest/rustls-tls"]
 sha2-asm = ["sha2/asm"]
 blocking = ["reqwest/blocking"]
+
+
+[workspace]
+members = ["svm-builds"]
