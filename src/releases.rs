@@ -137,7 +137,7 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError
         let mut releases = reqwest::blocking::get(format!(
             "{}/{}/list.json",
             SOLC_RELEASES_URL,
-            Platform::MacOsAmd64.to_string(),
+            Platform::MacOsAmd64,
         ))?
         .json::<Releases>()?;
         releases.builds = releases
@@ -151,12 +151,8 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError
         return Ok(releases);
     }
 
-    let releases = reqwest::blocking::get(format!(
-        "{}/{}/list.json",
-        SOLC_RELEASES_URL,
-        platform.to_string()
-    ))?
-    .json::<Releases>()?;
+    let releases = reqwest::blocking::get(format!("{}/{}/list.json", SOLC_RELEASES_URL, platform))?
+        .json::<Releases>()?;
     Ok(unified_releases(releases, platform))
 }
 
@@ -181,7 +177,7 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
         let mut releases = get(format!(
             "{}/{}/list.json",
             SOLC_RELEASES_URL,
-            Platform::MacOsAmd64.to_string(),
+            Platform::MacOsAmd64,
         ))
         .await?
         .json::<Releases>()
@@ -197,14 +193,10 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
         return Ok(releases);
     }
 
-    let releases = get(format!(
-        "{}/{}/list.json",
-        SOLC_RELEASES_URL,
-        platform.to_string()
-    ))
-    .await?
-    .json::<Releases>()
-    .await?;
+    let releases = get(format!("{}/{}/list.json", SOLC_RELEASES_URL, platform))
+        .await?
+        .json::<Releases>()
+        .await?;
 
     Ok(unified_releases(releases, platform))
 }
@@ -268,7 +260,7 @@ pub fn artifact_url(
             return Ok(Url::parse(&format!(
                 "{}/{}/{}",
                 SOLC_RELEASES_URL,
-                Platform::MacOsAmd64.to_string(),
+                Platform::MacOsAmd64,
                 artifact,
             ))?);
         }
@@ -276,9 +268,7 @@ pub fn artifact_url(
 
     Ok(Url::parse(&format!(
         "{}/{}/{}",
-        SOLC_RELEASES_URL,
-        platform.to_string(),
-        artifact
+        SOLC_RELEASES_URL, platform, artifact
     ))?)
 }
 
