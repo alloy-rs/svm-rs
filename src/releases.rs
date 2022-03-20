@@ -35,10 +35,10 @@ static LINUX_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
 static MACOS_AARCH64_NATIVE: Lazy<Version> = Lazy::new(|| Version::new(0, 8, 5));
 
 static MACOS_AARCH64_URL_PREFIX: &str =
-    "https://github.com/roynalnaruto/solc-builds/raw/44694969a8ab050e620b8685e4e1d6a69167fc17/macosx/aarch64";
+    "https://github.com/roynalnaruto/solc-builds/raw/465839dcbb23fd4e60c16e8cae32513cd5627ca0/macosx/aarch64";
 
 static MACOS_AARCH64_RELEASES_URL: &str =
-    "https://github.com/roynalnaruto/solc-builds/raw/44694969a8ab050e620b8685e4e1d6a69167fc17/macosx/aarch64/list.json";
+    "https://github.com/roynalnaruto/solc-builds/raw/465839dcbb23fd4e60c16e8cae32513cd5627ca0/macosx/aarch64/list.json";
 
 /// Defines the struct that the JSON-formatted release list can be deserialized into.
 ///
@@ -143,7 +143,7 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError
         releases.builds = releases
             .builds
             .iter()
-            .filter(|b| b.version.le(&MACOS_AARCH64_NATIVE))
+            .filter(|b| b.version.lt(&MACOS_AARCH64_NATIVE))
             .cloned()
             .collect();
         releases.builds.extend_from_slice(&native.builds);
@@ -185,7 +185,7 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
         releases.builds = releases
             .builds
             .iter()
-            .filter(|b| b.version.le(&MACOS_AARCH64_NATIVE))
+            .filter(|b| b.version.lt(&MACOS_AARCH64_NATIVE))
             .cloned()
             .collect();
         releases.builds.extend_from_slice(&native.builds);
