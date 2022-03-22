@@ -343,7 +343,7 @@ mod tests {
         assert_eq!(
             artifact_url(Platform::LinuxAarch64, &version, artifact).unwrap(),
             Url::parse(&format!(
-                "https://github.com/nikitastupin/solc/raw/3890b86a62fe6b8efd2f643f4adcd854f478b623/linux/aarch64/{}",
+                "https://github.com/nikitastupin/solc/raw/08e633c3585e2a053f0662714098440e639a074a/linux/aarch64/{}",
                 artifact
             ))
             .unwrap(),

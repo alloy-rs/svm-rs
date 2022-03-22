@@ -284,8 +284,8 @@ mod tests {
 
     #[test]
     fn test_linux_aarch64() {
-        assert_eq!(LINUX_AARCH64_RELEASES.releases.len(), 43);
-        assert_eq!(LINUX_AARCH64_RELEASES.builds.len(), 43);
+        assert_eq!(LINUX_AARCH64_RELEASES.releases.len(), 45);
+        assert_eq!(LINUX_AARCH64_RELEASES.builds.len(), 45);
     }
 
     #[tokio::test]
