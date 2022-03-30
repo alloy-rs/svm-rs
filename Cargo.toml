@@ -29,6 +29,7 @@ cfg-if = { version = "1.0.0", default-features = false }
 clap = { version = "3.0.6", features = ["derive"] }
 console = { version = "0.14.1", default-features = false }
 dialoguer = { version = "0.8.0", default-features = false }
+fs2 = "0.4.3"
 hex = { version = "0.4.3", default-features = false, features = ["std"] }
 home = { version = "0.5.3", default-features = false }
 indicatif = { version = "0.16.2", default-features = false }

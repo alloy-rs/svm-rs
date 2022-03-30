@@ -1,16 +1,15 @@
 use once_cell::sync::Lazy;
 use semver::Version;
 use sha2::Digest;
-use tracing::Level;
 
 use std::{
     ffi::OsString,
     fs,
     io::{Cursor, Write},
-    path::{Path, PathBuf},
-    time::Duration,
+    path::PathBuf,
 };
 
+use std::time::Duration;
 /// Use permissions extensions on unix
 #[cfg(target_family = "unix")]
 use std::{fs::Permissions, os::unix::fs::PermissionsExt};
@@ -27,9 +26,6 @@ pub use releases::{all_releases, Releases};
 #[cfg(feature = "blocking")]
 pub use releases::blocking_all_releases;
 
-static INSTALL_TIMEOUT: Duration = Duration::from_secs(10);
-static LOCKFILE_CHECK_INTERVAL: Duration = Duration::from_millis(500);
-
 /// Declare path to Solc Version Manager's home directory, "~/.svm" on Unix-based machines.
 pub static SVM_HOME: Lazy<PathBuf> = Lazy::new(|| {
     cfg_if::cfg_if! {
@@ -44,17 +40,17 @@ pub static SVM_HOME: Lazy<PathBuf> = Lazy::new(|| {
     }
 });
 
+/// The timeout to use for requests to the source
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
+
 // Installer type that copies binary data to the appropriate solc binary file:
 // 1. create target file to copy binary data
 // 2. copy data
-// 3. lock file is removed when installer goes out of scope
 struct Installer {
     // version of solc
     version: Version,
     // binary data of the solc executable
     binbytes: Vec<u8>,
-    // optional lock to pause other threads from proceeding with installation of the same version
-    lock: Option<PathBuf>,
 }
 
 impl Installer {
@@ -73,17 +69,6 @@ impl Installer {
         std::io::copy(&mut content, &mut f)?;
 
         Ok(solc_path)
-    }
-}
-
-impl Drop for Installer {
-    fn drop(&mut self) {
-        if let Some(lock_path) = &self.lock {
-            fs::remove_file(lock_path.as_path()).map_or_else(
-                |e| tracing::event!(Level::DEBUG, "{}", e.to_string()),
-                |_| (),
-            );
-        }
     }
 }
 
@@ -174,23 +159,23 @@ pub fn blocking_install(version: &Version) -> Result<PathBuf, SolcVmError> {
         .get_checksum(version)
         .unwrap_or_else(|| panic!("checksum not available: {:?}", version.to_string()));
 
-    let res = reqwest::blocking::get(download_url)?;
+    let res = reqwest::blocking::Client::builder()
+        .timeout(REQUEST_TIMEOUT)
+        .build()
+        .expect("reqwest::Client::new()")
+        .get(download_url)
+        .send()?;
+
     let binbytes = res.bytes()?;
     ensure_checksum(&binbytes, version, checksum)?;
 
     // lock file to indicate that installation of this solc version will be in progress.
-    let lock_path = SVM_HOME.join(&format!(".lock-solc-{}", version));
-
+    let lock_path = lock_file_path(version);
     // wait until lock file is released, possibly by another parallel thread trying to install the
     // same version of solc.
-    if !blocking_wait_for_lock(&lock_path) {
-        return Err(SolcVmError::Timeout(
-            version.to_string(),
-            INSTALL_TIMEOUT.as_secs(),
-        ));
-    }
+    let _lock = try_lock_file(lock_path)?;
 
-    do_install(version.clone(), binbytes.to_vec(), lock_path)
+    do_install(version.clone(), binbytes.to_vec())
 }
 
 /// Installs the provided version of Solc in the machine.
@@ -211,41 +196,31 @@ pub async fn install(version: &Version) -> Result<PathBuf, SolcVmError> {
         .get_checksum(version)
         .unwrap_or_else(|| panic!("checksum not available: {:?}", version.to_string()));
 
-    let res = reqwest::get(download_url).await?;
+    let res = reqwest::Client::builder()
+        .timeout(REQUEST_TIMEOUT)
+        .build()
+        .expect("reqwest::Client::new()")
+        .get(download_url)
+        .send()
+        .await?;
+
     let binbytes = res.bytes().await?;
     ensure_checksum(&binbytes, version, checksum)?;
 
     // lock file to indicate that installation of this solc version will be in progress.
-    let lock_path = SVM_HOME.join(&format!(".lock-solc-{}", version));
-
+    let lock_path = lock_file_path(version);
     // wait until lock file is released, possibly by another parallel thread trying to install the
     // same version of solc.
-    tokio::time::timeout(INSTALL_TIMEOUT, wait_for_lock(&lock_path))
-        .await
-        .map_err(|_| {
-            tracing::event!(Level::DEBUG, "time out waiting for lock file");
-            SolcVmError::Timeout(version.to_string(), INSTALL_TIMEOUT.as_secs())
-        })?;
+    let _lock = try_lock_file(lock_path)?;
 
-    do_install(version.clone(), binbytes.to_vec(), lock_path)
+    do_install(version.clone(), binbytes.to_vec())
 }
 
-fn do_install(
-    version: Version,
-    binbytes: Vec<u8>,
-    lock_path: PathBuf,
-) -> Result<PathBuf, SolcVmError> {
+fn do_install(version: Version, binbytes: Vec<u8>) -> Result<PathBuf, SolcVmError> {
     let installer = {
         setup_version(version.to_string().as_str())?;
 
-        // create lock file.
-        fs::File::create(&lock_path)?;
-
-        Installer {
-            version,
-            binbytes,
-            lock: Some(lock_path),
-        }
+        Installer { version, binbytes }
     };
 
     installer.install()
@@ -273,33 +248,6 @@ pub fn setup_home() -> Result<PathBuf, SolcVmError> {
     Ok(home_dir)
 }
 
-/// Returns `true` if lock is ready and `false` if timed out
-#[cfg(feature = "blocking")]
-fn blocking_wait_for_lock(lock_path: &Path) -> bool {
-    let span = tracing::trace_span!("wait for lock file", ?lock_path);
-    let _enter = span.enter();
-
-    let deadline = std::time::Instant::now() + INSTALL_TIMEOUT;
-    while lock_path.exists() {
-        if std::time::Instant::now() > deadline {
-            return false;
-        }
-        tracing::event!(Level::DEBUG, "time out waiting for lock file");
-        std::thread::sleep(LOCKFILE_CHECK_INTERVAL);
-    }
-    true
-}
-
-async fn wait_for_lock(lock_path: &Path) {
-    let span = tracing::trace_span!("wait for lock file", ?lock_path);
-    let _enter = span.enter();
-
-    let mut interval = tokio::time::interval(LOCKFILE_CHECK_INTERVAL);
-    while lock_path.exists() {
-        interval.tick().await;
-    }
-}
-
 fn setup_version(version: &str) -> Result<(), SolcVmError> {
     let v = version_path(version);
     if !v.exists() {
@@ -321,6 +269,38 @@ fn ensure_checksum(
         return Err(SolcVmError::ChecksumMismatch(version.to_string()));
     }
     Ok(())
+}
+
+/// Creates the file and locks it exclusively, this will block if the file is currently locked
+fn try_lock_file(lock_path: PathBuf) -> Result<LockFile, SolcVmError> {
+    use fs2::FileExt;
+    let _lock_file = fs::OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .open(&lock_path)?;
+    _lock_file.lock_exclusive()?;
+    Ok(LockFile {
+        lock_path,
+        _lock_file,
+    })
+}
+
+/// Represents a lockfile that's removed once dropped
+struct LockFile {
+    _lock_file: fs::File,
+    lock_path: PathBuf,
+}
+
+impl Drop for LockFile {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.lock_path);
+    }
+}
+
+/// Returns the lockfile to use for a specific file
+fn lock_file_path(version: &Version) -> PathBuf {
+    SVM_HOME.join(&format!(".lock-solc-{}", version))
 }
 
 #[cfg(test)]
@@ -409,5 +389,24 @@ mod tests {
         assert!(String::from_utf8_lossy(&output.stdout)
             .as_ref()
             .contains("0.8.10"));
+    }
+
+    #[cfg(feature = "blocking")]
+    #[test]
+    fn can_install_parallel() {
+        let version: Version = "0.8.10".parse().unwrap();
+        let cloned_version = version.clone();
+        let t = std::thread::spawn(move || blocking_install(&cloned_version));
+        blocking_install(&version).unwrap();
+        t.join().unwrap().unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn can_install_parallel_async() {
+        let version: Version = "0.8.10".parse().unwrap();
+        let cloned_version = version.clone();
+        let t = tokio::task::spawn(async move { install(&cloned_version).await });
+        install(&version).await.unwrap();
+        t.await.unwrap().unwrap();
     }
 }
