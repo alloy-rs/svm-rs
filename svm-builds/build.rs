@@ -68,6 +68,17 @@ pub fn get_checksum(version: &semver::Version) -> Option<Vec<u8>> {{
     writer.add_raw(&get_check_sum_fn);
 }
 
+/// checks the current platform and adds it as constant
+fn add_platform_const(writer: &mut build_const::ConstValueWriter) {
+    writer.add_raw(&format!(
+        r#"
+/// The `svm::Platform` all constants were built for
+pub const TARGET_PLATFORM: &str = "{}";
+"#,
+        svm::platform()
+    ));
+}
+
 fn main() {
     let releases = svm::blocking_all_releases(svm::platform()).expect("Failed to fetch releases");
 
@@ -75,8 +86,13 @@ fn main() {
         .unwrap()
         .finish_dependencies();
 
+    // add the platform as constant
+    add_platform_const(&mut writer);
+
+    // add all solc version info
     add_build_info_constants(&mut writer, &releases);
 
+    // add the whole release string
     let release_json = serde_json::to_string(&releases).unwrap();
     writer.add_raw(&format!(
         r#"
