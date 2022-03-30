@@ -19,7 +19,7 @@ mod error;
 pub use error::SolcVmError;
 
 mod platform;
-pub use platform::platform;
+pub use platform::{platform, Platform};
 
 mod releases;
 pub use releases::{all_releases, Releases};
