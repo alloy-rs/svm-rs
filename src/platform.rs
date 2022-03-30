@@ -1,8 +1,9 @@
 use std::fmt::Formatter;
+use std::str::FromStr;
 use std::{env, fmt};
 
 /// Types of supported platforms.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub enum Platform {
     LinuxAmd64,
     LinuxAarch64,
@@ -23,6 +24,21 @@ impl fmt::Display for Platform {
             Platform::Unsupported => "Unsupported-platform",
         };
         f.write_str(s)
+    }
+}
+
+impl FromStr for Platform {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "linux-amd64" => Ok(Platform::LinuxAmd64),
+            "linux-aarch64" => Ok(Platform::LinuxAarch64),
+            "macosx-amd64" => Ok(Platform::MacOsAmd64),
+            "macosx-aarch64" => Ok(Platform::MacOsAarch64),
+            "windows-amd64" => Ok(Platform::WindowsAmd64),
+            s => Err(format!("unsupported platform {}", s)),
+        }
     }
 }
 
