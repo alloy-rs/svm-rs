@@ -41,7 +41,7 @@ pub static SVM_HOME: Lazy<PathBuf> = Lazy::new(|| {
 });
 
 /// The timeout to use for requests to the source
-const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 
 // Installer type that copies binary data to the appropriate solc binary file:
 // 1. create target file to copy binary data

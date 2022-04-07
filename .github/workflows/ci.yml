@@ -23,7 +23,7 @@ jobs:
     - name: Linting
       run: cargo clippy -- -D warnings
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test --all-features
 
   windows-build:
     runs-on: windows-latest
