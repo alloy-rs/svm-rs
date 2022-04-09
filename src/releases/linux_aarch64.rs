@@ -1,10 +1,5 @@
 use reqwest::get;
 use semver::Version;
-use serde::{
-    de::{self, Deserializer},
-    Deserialize, Serialize,
-};
-use std::collections::BTreeMap;
 use url::Url;
 
 use super::Releases;
@@ -14,7 +9,7 @@ static URL_PREFIX: &str =
     "https://github.com/nikitastupin/solc/raw/08e633c3585e2a053f0662714098440e639a074a/linux/aarch64";
 
 static RELEASES: Lazy<Releases> = Lazy::new(|| {
-    serde_json::from_str(include_str!("../list/linux-aarch64.json"))
+    serde_json::from_str(include_str!("../../list/linux-aarch64.json"))
         .expect("could not parse list linux-aarch64.json")
 });
 

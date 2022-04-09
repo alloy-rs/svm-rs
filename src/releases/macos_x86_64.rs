@@ -1,10 +1,5 @@
 use reqwest::get;
 use semver::Version;
-use serde::{
-    de::{self, Deserializer},
-    Deserialize, Serialize,
-};
-use std::collections::BTreeMap;
 use url::Url;
 
 use super::{Releases, SOLC_RELEASES_URL};
@@ -22,7 +17,7 @@ pub fn blocking_all_releases() -> Result<Releases, SolcVmError> {
 
 pub async fn all_releases() -> Result<Releases, SolcVmError> {
     Ok(
-        get(format!("{}/{}/list.json", SOLC_RELEASES_URL, platform(),))
+        get(format!("{}/{}/list.json", SOLC_RELEASES_URL, platform()))
             .await?
             .json::<Releases>()
             .await?,
