@@ -1,6 +1,6 @@
+use std::fmt;
 use std::fmt::Formatter;
 use std::str::FromStr;
-use std::{env, fmt};
 
 /// Types of supported platforms.
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
@@ -43,15 +43,32 @@ impl FromStr for Platform {
 }
 
 /// Read the current machine's platform.
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 pub fn platform() -> Platform {
-    match (env::consts::OS, env::consts::ARCH) {
-        ("linux", "x86_64") => Platform::LinuxAmd64,
-        ("linux", "aarch64") => Platform::LinuxAarch64,
-        ("macos", "x86_64") => Platform::MacOsAmd64,
-        ("macos", "aarch64") => Platform::MacOsAarch64,
-        ("windows", "x86_64") => Platform::WindowsAmd64,
-        _ => Platform::Unsupported,
-    }
+    Platform::LinuxAmd64
+}
+
+/// Read the current machine's platform.
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+pub fn platform() -> Platform {
+    Platform::LinuxAarch64
+}
+
+/// Read the current machine's platform.
+#[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+pub fn platform() -> Platform {
+    Platform::MacOsAmd64
+}
+
+/// Read the current machine's platform.
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+pub fn platform() -> Platform {
+    Platform::MacOsAarch64
+}
+
+#[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+pub fn platform() -> Platform {
+    Platform::WindowsAmd64
 }
 
 #[cfg(test)]

@@ -132,15 +132,13 @@ pub fn installed_versions() -> Result<Vec<Version>, SolcVmError> {
 /// Blocking version of [`all_versions`]
 #[cfg(feature = "blocking")]
 pub fn blocking_all_versions() -> Result<Vec<Version>, SolcVmError> {
-    Ok(releases::blocking_all_releases(platform::platform())?.into_versions())
+    Ok(releases::blocking_all_releases()?.into_versions())
 }
 
 /// Fetches the list of all the available versions of Solc. The list is platform dependent, so
 /// different versions can be found for macosx vs linux.
 pub async fn all_versions() -> Result<Vec<Version>, SolcVmError> {
-    Ok(releases::all_releases(platform::platform())
-        .await?
-        .into_versions())
+    Ok(releases::all_releases().await?.into_versions())
 }
 
 /// Blocking version of [`install`]
@@ -148,12 +146,11 @@ pub async fn all_versions() -> Result<Vec<Version>, SolcVmError> {
 pub fn blocking_install(version: &Version) -> Result<PathBuf, SolcVmError> {
     setup_home()?;
 
-    let artifacts = releases::blocking_all_releases(platform::platform())?;
+    let artifacts = releases::blocking_all_releases()?;
     let artifact = artifacts
         .get_artifact(version)
         .ok_or(SolcVmError::UnknownVersion)?;
-    let download_url =
-        releases::artifact_url(platform::platform(), version, artifact.to_string().as_str())?;
+    let download_url = releases::artifact_url(version, artifact.to_string().as_str())?;
 
     let checksum = artifacts
         .get_checksum(version)
@@ -184,13 +181,12 @@ pub fn blocking_install(version: &Version) -> Result<PathBuf, SolcVmError> {
 pub async fn install(version: &Version) -> Result<PathBuf, SolcVmError> {
     setup_home()?;
 
-    let artifacts = releases::all_releases(platform::platform()).await?;
+    let artifacts = releases::all_releases().await?;
     let artifact = artifacts
         .releases
         .get(version)
         .ok_or(SolcVmError::UnknownVersion)?;
-    let download_url =
-        releases::artifact_url(platform::platform(), version, artifact.to_string().as_str())?;
+    let download_url = releases::artifact_url(version, artifact.to_string().as_str())?;
 
     let checksum = artifacts
         .get_checksum(version)
@@ -305,23 +301,22 @@ fn lock_file_path(version: &Version) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        platform::Platform,
-        releases::{all_releases, artifact_url},
-    };
+    use crate::releases::all_releases;
     use rand::seq::SliceRandom;
-    use reqwest::Url;
 
     use std::process::{Command, Stdio};
 
     use super::*;
 
     #[tokio::test]
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
     async fn test_artifact_url() {
+        use reqwest::Url;
+
         let version = Version::new(0, 5, 0);
         let artifact = "solc-v0.5.0";
         assert_eq!(
-            artifact_url(Platform::LinuxAarch64, &version, artifact).unwrap(),
+            artifact_url(&version, artifact).unwrap(),
             Url::parse(&format!(
                 "https://github.com/nikitastupin/solc/raw/c41a97910d37ee3b2c32ae2a3f8b6b8667e3fb39/linux/aarch64/{}",
                 artifact
@@ -332,7 +327,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_install() {
-        let versions = all_releases(platform())
+        let versions = all_releases()
             .await
             .unwrap()
             .releases
@@ -345,9 +340,8 @@ mod tests {
     #[cfg(feature = "blocking")]
     #[test]
     fn blocking_test_install() {
-        let versions = crate::releases::blocking_all_releases(platform::platform())
-            .unwrap()
-            .into_versions();
+        use crate::releases::blocking_all_releases;
+        let versions = blocking_all_releases().unwrap().into_versions();
         let rand_version = versions.choose(&mut rand::thread_rng()).unwrap();
         assert!(blocking_install(rand_version).is_ok());
     }
