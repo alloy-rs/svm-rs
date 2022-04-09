@@ -38,11 +38,14 @@ static LINUX_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
         .expect("could not parse list linux-aarch64.json")
 });
 
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 static MACOS_AARCH64_NATIVE: Lazy<Version> = Lazy::new(|| Version::new(0, 8, 5));
 
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 static MACOS_AARCH64_URL_PREFIX: &str =
     "https://github.com/roynalnaruto/solc-builds/raw/465839dcbb23fd4e60c16e8cae32513cd5627ca0/macosx/aarch64";
 
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 static MACOS_AARCH64_RELEASES_URL: &str =
     "https://github.com/roynalnaruto/solc-builds/raw/465839dcbb23fd4e60c16e8cae32513cd5627ca0/macosx/aarch64/list.json";
 
@@ -300,16 +303,17 @@ pub fn artifact_url(version: &Version, artifact: &str) -> Result<Url, SolcVmErro
 
 #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
 pub fn artifact_url(version: &Version, artifact: &str) -> Result<Url, SolcVmError> {
-    let platform = crate::platform();
     if version.lt(&OLD_VERSION_MIN) {
         Err(SolcVmError::UnsupportedVersion(
             version.to_string(),
-            platform.to_string(),
+            crate::platform().to_string(),
         ))
     } else {
         Ok(Url::parse(&format!(
             "{}/{}/{}",
-            SOLC_RELEASES_URL, platform, artifact
+            SOLC_RELEASES_URL,
+            crate::platform(),
+            artifact
         ))?)
     }
 }
@@ -329,6 +333,16 @@ pub fn artifact_url(version: &Version, artifact: &str) -> Result<Url, SolcVmErro
             artifact,
         ))?)
     }
+}
+
+#[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+pub fn artifact_url(version: &Version, artifact: &str) -> Result<Url, SolcVmError> {
+    Ok(Url::parse(&format!(
+        "{}/{}/{}",
+        SOLC_RELEASES_URL,
+        crate::platform(),
+        artifact
+    ))?)
 }
 
 #[cfg(test)]
