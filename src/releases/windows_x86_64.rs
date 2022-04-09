@@ -11,23 +11,19 @@ use crate::{error::SolcVmError, platform::platform};
 
 #[cfg(feature = "blocking")]
 pub fn blocking_all_releases() -> Result<Releases, SolcVmError> {
-    Ok(reqwest::blocking::get(format!(
-        "{}/{}/list.json",
-        SOLC_RELEASES_URL,
-        platform(),
-    ))?
-    .json::<Releases>()?)
+    Ok(
+        reqwest::blocking::get(format!("{}/{}/list.json", SOLC_RELEASES_URL, platform(),))?
+            .json::<Releases>()?,
+    )
 }
 
 pub async fn all_releases() -> Result<Releases, SolcVmError> {
-    Ok(get(format!(
-        "{}/{}/list.json",
-        SOLC_RELEASES_URL,
-        platform(),
-    ))
-    .await?
-    .json::<Releases>()
-    .await?)
+    Ok(
+        get(format!("{}/{}/list.json", SOLC_RELEASES_URL, platform(),))
+            .await?
+            .json::<Releases>()
+            .await?,
+    )
 }
 
 pub fn artifact_url(version: &Version, artifact: &str) -> Result<Url, SolcVmError> {

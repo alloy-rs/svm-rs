@@ -30,6 +30,13 @@ pub use macos_aarch64::blocking_all_releases;
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 pub use macos_aarch64::{all_releases, artifact_url};
 
+#[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+mod windows_x86_64;
+#[cfg(all(feature = "blocking", target_os = "windows", target_arch = "x86_64"))]
+pub use windows_x86_64::blocking_all_releases;
+#[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+pub use windows_x86_64::{all_releases, artifact_url};
+
 mod util;
 use util::hex_string;
 
