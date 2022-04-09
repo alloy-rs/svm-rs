@@ -1,4 +1,9 @@
+#[cfg(any(
+    all(target_os = "linux", target_arch = "x86_64"),
+    all(target_os = "macos", target_arch = "aarch64"),
+))]
 use once_cell::sync::Lazy;
+
 use reqwest::get;
 use semver::Version;
 use serde::{
@@ -183,7 +188,7 @@ pub fn blocking_all_releases() -> Result<Releases, SolcVmError> {
     Ok(releases)
 }
 
-#[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+#[cfg(all(feature = "blocking", target_os = "windows", target_arch = "x86_64"))]
 pub fn blocking_all_releases() -> Result<Releases, SolcVmError> {
     Ok(reqwest::blocking::get(format!(
         "{}/{}/list.json",
