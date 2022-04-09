@@ -211,7 +211,7 @@ pub async fn all_releases() -> Result<Releases, SolcVmError> {
 
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
 pub async fn all_releases() -> Result<Releases, SolcVmError> {
-    Ok(LINUX_AARCH64_RELEASES.clone());
+    Ok(LINUX_AARCH64_RELEASES.clone())
 }
 
 #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
