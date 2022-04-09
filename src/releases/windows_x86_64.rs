@@ -22,7 +22,7 @@ pub async fn all_releases() -> Result<Releases, SolcVmError> {
     )
 }
 
-pub fn artifact_url(version: &Version, artifact: &str) -> Result<Url, SolcVmError> {
+pub fn artifact_url(_version: &Version, artifact: &str) -> Result<Url, SolcVmError> {
     Ok(Url::parse(&format!(
         "{}/{}/{}",
         SOLC_RELEASES_URL,
