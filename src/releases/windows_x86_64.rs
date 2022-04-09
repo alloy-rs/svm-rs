@@ -1,12 +1,8 @@
 use reqwest::get;
 use semver::Version;
-use serde::{
-    de::{self, Deserializer},
-    Deserialize, Serialize,
-};
-use std::collections::BTreeMap;
 use url::Url;
 
+use super::{Releases, SOLC_RELEASES_URL};
 use crate::{error::SolcVmError, platform::platform};
 
 #[cfg(feature = "blocking")]
