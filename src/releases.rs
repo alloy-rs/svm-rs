@@ -8,7 +8,7 @@ use serde::{
 use std::collections::BTreeMap;
 use url::Url;
 
-use crate::{error::SolcVmError, platform::Platform};
+use crate::error::SolcVmError;
 
 const SOLC_RELEASES_URL: &str = "https://binaries.soliditylang.org";
 
@@ -169,7 +169,7 @@ pub fn blocking_all_releases() -> Result<Releases, SolcVmError> {
     let mut releases = reqwest::blocking::get(format!(
         "{}/{}/list.json",
         SOLC_RELEASES_URL,
-        Platform::MacOsAmd64,
+        crate::platform::Platform::MacOsAmd64,
     ))?
     .json::<Releases>()?;
     releases.builds = releases
@@ -242,7 +242,7 @@ pub async fn all_releases() -> Result<Releases, SolcVmError> {
     let mut releases = get(format!(
         "{}/{}/list.json",
         SOLC_RELEASES_URL,
-        Platform::MacOsAmd64
+        crate::platform::Platform::MacOsAmd64
     ))
     .await?
     .json::<Releases>()
@@ -329,7 +329,7 @@ pub fn artifact_url(version: &Version, artifact: &str) -> Result<Url, SolcVmErro
         Ok(Url::parse(&format!(
             "{}/{}/{}",
             SOLC_RELEASES_URL,
-            Platform::MacOsAmd64,
+            crate::platform::Platform::MacOsAmd64,
             artifact,
         ))?)
     }
