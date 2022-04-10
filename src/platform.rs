@@ -2,14 +2,20 @@ use std::fmt;
 use std::fmt::Formatter;
 use std::str::FromStr;
 
-/// Types of supported platforms.
+/// Various platforms supported in SVM.
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub enum Platform {
+    /// target `x86_64-unknown-linux-gnu`.
     LinuxAmd64,
+    /// target `aarch64-unknown-linux-gnu`.
     LinuxAarch64,
+    /// target `x86_64-apple-darwin`.
     MacOsAmd64,
+    /// target `aarch64-apple-darwin`.
     MacOsAarch64,
+    /// target `x86_64-pc-windows-gnu`.
     WindowsAmd64,
+    /// Variant to denote that current machine is not supported.
     Unsupported,
 }
 
@@ -66,6 +72,7 @@ pub fn platform() -> Platform {
     Platform::MacOsAarch64
 }
 
+/// Read the current machine's platform.
 #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
 pub fn platform() -> Platform {
     Platform::WindowsAmd64

@@ -2,6 +2,7 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+/// Module and functions imported for `Platform::LinuxAmd64`.
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 mod linux_x86_64;
 #[cfg(all(feature = "blocking", target_os = "linux", target_arch = "x86_64"))]
@@ -9,6 +10,7 @@ pub use linux_x86_64::blocking_all_releases;
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 pub use linux_x86_64::{all_releases, artifact_url};
 
+/// Module and functions imported for `Platform::LinuxAarch64`.
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
 mod linux_aarch64;
 #[cfg(all(feature = "blocking", target_os = "linux", target_arch = "aarch64"))]
@@ -16,6 +18,7 @@ pub use linux_aarch64::blocking_all_releases;
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
 pub use linux_aarch64::{all_releases, artifact_url};
 
+/// Module and functions imported for `Platform::MacosAmd64`.
 #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
 mod macos_x86_64;
 #[cfg(all(feature = "blocking", target_os = "macos", target_arch = "x86_64"))]
@@ -23,6 +26,7 @@ pub use macos_x86_64::blocking_all_releases;
 #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
 pub use macos_x86_64::{all_releases, artifact_url};
 
+/// Module and functions imported for `Platform::MacosAarch64`.
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 mod macos_aarch64;
 #[cfg(all(feature = "blocking", target_os = "macos", target_arch = "aarch64"))]
@@ -30,6 +34,7 @@ pub use macos_aarch64::blocking_all_releases;
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 pub use macos_aarch64::{all_releases, artifact_url};
 
+/// Module and functions imported for `Platform::WindowsAmd64`.
 #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
 mod windows_x86_64;
 #[cfg(all(feature = "blocking", target_os = "windows", target_arch = "x86_64"))]
@@ -40,6 +45,10 @@ pub use windows_x86_64::{all_releases, artifact_url};
 mod util;
 use util::hex_string;
 
+/// Prefix to the URLs to fetch solc metadata and the solc binaries.
+///
+/// List URL  : {SOLC_RELEASES_URL}/{platform}/list.json
+/// Binary URL: {SOLC_RELEASES_URL}/{platform}/{artifact}
 const SOLC_RELEASES_URL: &str = "https://binaries.soliditylang.org";
 
 /// Defines the struct that the JSON-formatted release list can be deserialized into.
@@ -61,7 +70,9 @@ const SOLC_RELEASES_URL: &str = "https://binaries.soliditylang.org";
 /// Both the key and value are deserialized into semver::Version.
 #[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct Releases {
+    /// List of `BuildInfo`.
     pub builds: Vec<BuildInfo>,
+    /// Map of version to artifact.
     pub releases: BTreeMap<Version, String>,
 }
 
@@ -92,7 +103,9 @@ impl Releases {
 /// Build info contains the SHA256 checksum of a solc binary.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BuildInfo {
+    /// Solc version.
     pub version: Version,
+    /// Expected SHA-256 checksum of the solc binary.
     #[serde(with = "hex_string")]
     pub sha256: Vec<u8>,
 }

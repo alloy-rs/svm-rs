@@ -10,6 +10,7 @@ use std::{
 };
 
 use std::time::Duration;
+
 /// Use permissions extensions on unix
 #[cfg(target_family = "unix")]
 use std::{fs::Permissions, os::unix::fs::PermissionsExt};
@@ -47,9 +48,9 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 // 1. create target file to copy binary data
 // 2. copy data
 struct Installer {
-    // version of solc
+    /// Solc version.
     version: Version,
-    // binary data of the solc executable
+    /// Binary data of the solc executable.
     binbytes: Vec<u8>,
 }
 

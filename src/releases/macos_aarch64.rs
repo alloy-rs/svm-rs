@@ -6,11 +6,17 @@ use url::Url;
 use super::{Releases, SOLC_RELEASES_URL};
 use crate::{error::SolcVmError, platform::Platform};
 
+/// Version from which we support solc binaries natively built for Platform::MacOsAarch64.
 static NATIVE_BUILDS_FROM: Lazy<Version> = Lazy::new(|| Version::new(0, 8, 5));
 
+/// Prefix URL for downloading solc binaries natively built for Platform::MacOsAarch64.
+///
+/// Binary URL: {URL_PREFIX}/{artifact}
 static URL_PREFIX: &str =
     "https://github.com/roynalnaruto/solc-builds/raw/465839dcbb23fd4e60c16e8cae32513cd5627ca0/macosx/aarch64";
 
+/// URL for fetching the metadata (release info) of solc binaries natively built for
+/// Platform::MacOsAarch64.
 static RELEASES_URL: &str =
     "https://github.com/roynalnaruto/solc-builds/raw/465839dcbb23fd4e60c16e8cae32513cd5627ca0/macosx/aarch64/list.json";
 
@@ -69,6 +75,8 @@ pub async fn all_releases() -> Result<Releases, SolcVmError> {
     Ok(releases)
 }
 
+/// Constructs the URL to the solc binary with the given version and artifact for
+/// Platform::MacOsAarch64.
 pub fn artifact_url(version: &Version, artifact: &str) -> Result<Url, SolcVmError> {
     if version.ge(&NATIVE_BUILDS_FROM) {
         Ok(Url::parse(&format!("{}/{}", URL_PREFIX, artifact))?)

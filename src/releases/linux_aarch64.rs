@@ -5,23 +5,31 @@ use url::Url;
 use super::Releases;
 use crate::{error::SolcVmError, platform::platform};
 
+/// Prefix to the URL to download solc binaries for Platform::LinuxAarch64.
+///
+/// Binary URL: {URL_PREFIX}/{artifact}
 static URL_PREFIX: &str =
     "https://github.com/nikitastupin/solc/raw/08e633c3585e2a053f0662714098440e639a074a/linux/aarch64";
 
+/// Returns a list of available releases supported by Platform::LinuxAarch64.
 static RELEASES: Lazy<Releases> = Lazy::new(|| {
     serde_json::from_str(include_str!("../../list/linux-aarch64.json"))
         .expect("could not parse list linux-aarch64.json")
 });
 
+/// A blocking version to returns a list of all available releases that are supported for Platform::LinuxAaarch64.
 #[cfg(feature = "blocking")]
 pub fn blocking_all_releases() -> Result<Releases, SolcVmError> {
     Ok(RELEASES.clone())
 }
 
+/// Returns a list of all available releases that are supported for Platform::LinuxAarch64.
 pub async fn all_releases() -> Result<Releases, SolcVmError> {
     Ok(RELEASES.clone())
 }
 
+/// Constructs the URL to the solc binary with the given version and artifact for
+/// Platform::LinuxAarch64.
 pub fn artifact_url(version: &Version, artifact: &str) -> Result<Url, SolcVmError> {
     if RELEASES.releases.contains_key(version) {
         Ok(Url::parse(&format!("{}/{}", URL_PREFIX, artifact))?)
