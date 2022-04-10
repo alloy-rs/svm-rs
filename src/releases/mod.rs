@@ -2,45 +2,30 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-/// Module and functions imported for `Platform::LinuxAmd64`.
-#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-mod linux_x86_64;
-#[cfg(all(feature = "blocking", target_os = "linux", target_arch = "x86_64"))]
-pub use linux_x86_64::blocking_all_releases;
-#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-pub use linux_x86_64::{all_releases, artifact_url};
+macro_rules! declare_target {
+    ($os:ident, $arch:ident, $os_str:literal, $arch_str:literal) => {
+        #[cfg(all(target_os = $os_str, target_arch = $arch_str))]
+        use concat_idents::concat_idents;
+        #[cfg(all(target_os = $os_str, target_arch = $arch_str))]
+        concat_idents!(mod_name = $os, _, $arch {
+            mod mod_name;
+        });
+        #[cfg(all(target_os = $os_str, target_arch = $arch_str))]
+        concat_idents!(mod_name = $os, _, $arch {
+            pub use mod_name::{all_releases, artifact_url};
+        });
+        #[cfg(all(feature = "blocking", target_os = $os_str, target_arch = $arch_str))]
+        concat_idents!(mod_name = $os, _, $arch {
+            pub use mod_name::blocking_all_releases;
+        });
+    };
+}
 
-/// Module and functions imported for `Platform::LinuxAarch64`.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-mod linux_aarch64;
-#[cfg(all(feature = "blocking", target_os = "linux", target_arch = "aarch64"))]
-pub use linux_aarch64::blocking_all_releases;
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-pub use linux_aarch64::{all_releases, artifact_url};
-
-/// Module and functions imported for `Platform::MacosAmd64`.
-#[cfg(all(target_os = "macos", target_arch = "x86_64"))]
-mod macos_x86_64;
-#[cfg(all(feature = "blocking", target_os = "macos", target_arch = "x86_64"))]
-pub use macos_x86_64::blocking_all_releases;
-#[cfg(all(target_os = "macos", target_arch = "x86_64"))]
-pub use macos_x86_64::{all_releases, artifact_url};
-
-/// Module and functions imported for `Platform::MacosAarch64`.
-#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-mod macos_aarch64;
-#[cfg(all(feature = "blocking", target_os = "macos", target_arch = "aarch64"))]
-pub use macos_aarch64::blocking_all_releases;
-#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-pub use macos_aarch64::{all_releases, artifact_url};
-
-/// Module and functions imported for `Platform::WindowsAmd64`.
-#[cfg(all(target_os = "windows", target_arch = "x86_64"))]
-mod windows_x86_64;
-#[cfg(all(feature = "blocking", target_os = "windows", target_arch = "x86_64"))]
-pub use windows_x86_64::blocking_all_releases;
-#[cfg(all(target_os = "windows", target_arch = "x86_64"))]
-pub use windows_x86_64::{all_releases, artifact_url};
+declare_target!(linux, x86_64, "linux", "x86_64");
+declare_target!(linux, aarch64, "linux", "aarch64");
+declare_target!(macos, x86_64, "macos", "x86_64");
+declare_target!(macos, aarch64, "macos", "aarch64");
+declare_target!(windows, x86_64, "windows", "x86_64");
 
 mod util;
 use util::hex_string;
