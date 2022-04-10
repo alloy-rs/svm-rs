@@ -107,7 +107,7 @@ pub const TARGET_PLATFORM: &str = "{}";
 
 fn main() {
     let platform = get_platform();
-    let releases = svm::blocking_all_releases(platform).expect("Failed to fetch releases");
+    let releases = svm::blocking_all_releases().expect("Failed to fetch releases");
 
     let mut writer = build_const::ConstWriter::for_build("builds")
         .unwrap()
