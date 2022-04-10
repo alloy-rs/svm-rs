@@ -1,3 +1,4 @@
+use once_cell::sync::Lazy;
 use reqwest::get;
 use semver::Version;
 use url::Url;
