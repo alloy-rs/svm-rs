@@ -36,14 +36,7 @@ pub fn blocking_all_releases() -> Result<Releases, SolcVmError> {
         Platform::MacOsAmd64,
     ))?
     .json::<Releases>()?;
-    releases.builds = releases
-        .builds
-        .iter()
-        .filter(|b| b.version.lt(&NATIVE_BUILDS_FROM))
-        .cloned()
-        .collect();
-    releases.builds.extend_from_slice(&native.builds);
-    releases.releases.append(&mut native.releases);
+    append_releases(&mut native, &mut releases);
     Ok(releases)
 }
 
@@ -64,6 +57,11 @@ pub async fn all_releases() -> Result<Releases, SolcVmError> {
     .await?
     .json::<Releases>()
     .await?;
+    append_releases(&mut native, &mut releases);
+    Ok(releases)
+}
+
+fn append_releases(native: &mut Releases, releases: &mut Releases) {
     releases.builds = releases
         .builds
         .iter()
@@ -72,7 +70,6 @@ pub async fn all_releases() -> Result<Releases, SolcVmError> {
         .collect();
     releases.builds.extend_from_slice(&native.builds);
     releases.releases.append(&mut native.releases);
-    Ok(releases)
 }
 
 /// Constructs the URL to the solc binary with the given version and artifact for
