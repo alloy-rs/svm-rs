@@ -86,9 +86,20 @@ pub fn global_version_path() -> PathBuf {
     global_version_path
 }
 
-/// Reads the currently set global version for Solc. Returns None if none has yet been set.
+/// Reads the version from `.svmrc` file from the current or parent directory
+/// until it reach the global config path. Returns None if none has yet been set.
 pub fn current_version() -> Result<Option<Version>, SolcVmError> {
-    let v = fs::read_to_string(global_version_path().as_path())?;
+    let mut start_dir = std::env::current_dir()?;
+    let v = loop {
+        let svmrc = start_dir.join(".svmrc");
+        if svmrc.as_path().is_file() {
+            break fs::read_to_string(svmrc)?;
+        }
+        if start_dir.join(".svm") == SVM_HOME.to_path_buf() {
+            break fs::read_to_string(global_version_path().as_path())?;
+        }
+        start_dir.pop();
+    };
     Ok(Version::parse(v.trim_end_matches('\n').to_string().as_str()).ok())
 }
 

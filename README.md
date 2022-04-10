@@ -27,3 +27,24 @@ $ svm use <version>
 ```
 $ svm remove <version>
 ```
+
+### .svmrc
+
+You can create a `.svmrc` file containing a solidity version number in the
+project root directory (or any parent directory). Afterwards `solc` will use
+the version specified in the `.svmrc` file.
+
+For example, to make svm default to the solc v0.8.13:
+
+    $ echo "0.8.13" > .svmrc
+
+Then when you run `solc`:
+
+    $ solc --version
+    solc, the solidity compiler commandline interface
+    Version: 0.8.13+commit.abaa5c0e.Darwin.appleclang
+
+`solc` will traverse directory structure upwards from the current directory
+looking for the `.svmrc` file. In other words, running `solc` in any
+subdirectory of a directory with an `.svmrc` will result in that `.svmrc`
+being utilized.
