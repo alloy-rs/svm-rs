@@ -9,7 +9,7 @@ use crate::{error::SolcVmError, platform::platform};
 ///
 /// Binary URL: {URL_PREFIX}/{artifact}
 static URL_PREFIX: &str =
-    "https://github.com/nikitastupin/solc/raw/08e633c3585e2a053f0662714098440e639a074a/linux/aarch64";
+    "https://github.com/nikitastupin/solc/raw/c41a97910d37ee3b2c32ae2a3f8b6b8667e3fb39/linux/aarch64";
 
 /// Returns a list of available releases supported by Platform::LinuxAarch64.
 static RELEASES: Lazy<Releases> = Lazy::new(|| {
