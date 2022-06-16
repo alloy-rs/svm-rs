@@ -25,7 +25,7 @@ static OLD_SOLC_RELEASES: Lazy<Releases> = Lazy::new(|| {
 });
 
 static LINUX_AARCH64_URL_PREFIX: &str =
-    "https://github.com/nikitastupin/solc/raw/67d5ed7bbb3d426da15df323325e96ab46835400/linux/aarch64";
+    "https://github.com/nikitastupin/solc/raw/279fc7ba64cd1c507250b8f537d03766e8a2542a/linux/aarch64";
 
 static LINUX_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
     serde_json::from_str(include_str!("../list/linux-aarch64.json"))
@@ -35,10 +35,10 @@ static LINUX_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
 static MACOS_AARCH64_NATIVE: Lazy<Version> = Lazy::new(|| Version::new(0, 8, 5));
 
 static MACOS_AARCH64_URL_PREFIX: &str =
-    "https://github.com/roynalnaruto/solc-builds/raw/52c8796380178266f092dbac2579ec57652bd4c8/macosx/aarch64";
+    "https://github.com/roynalnaruto/solc-builds/raw/9cb46201533a2cb739059e09b5d9c211cfc62c4e/macosx/aarch64";
 
 static MACOS_AARCH64_RELEASES_URL: &str =
-    "https://github.com/roynalnaruto/solc-builds/raw/52c8796380178266f092dbac2579ec57652bd4c8/macosx/aarch64/list.json";
+    "https://github.com/roynalnaruto/solc-builds/raw/9cb46201533a2cb739059e09b5d9c211cfc62c4e/macosx/aarch64/list.json";
 
 /// Defines the struct that the JSON-formatted release list can be deserialized into.
 ///
@@ -284,8 +284,8 @@ mod tests {
 
     #[test]
     fn test_linux_aarch64() {
-        assert_eq!(LINUX_AARCH64_RELEASES.releases.len(), 46);
-        assert_eq!(LINUX_AARCH64_RELEASES.builds.len(), 46);
+        assert_eq!(LINUX_AARCH64_RELEASES.releases.len(), 47);
+        assert_eq!(LINUX_AARCH64_RELEASES.builds.len(), 47);
     }
 
     #[tokio::test]
