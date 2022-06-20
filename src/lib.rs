@@ -423,4 +423,27 @@ mod tests {
         install(&version).await.unwrap();
         t.await.unwrap().unwrap();
     }
+
+    // ensures we can download the latest native solc for apple silicon
+    #[tokio::test(flavor = "multi_thread")]
+    async fn can_download_latest_native_apple_silicon() {
+        let latest: Version = "0.8.15".parse().unwrap();
+
+        let artifacts = all_releases(Platform::MacOsAarch64).await.unwrap();
+
+        let artifact = artifacts.releases.get(&latest).unwrap();
+        let download_url = artifact_url(
+            Platform::MacOsAarch64,
+            &latest,
+            artifact.to_string().as_str(),
+        )
+        .unwrap();
+
+        let checksum = artifacts.get_checksum(&latest).unwrap();
+
+        let resp = reqwest::get(download_url).await.unwrap();
+        assert!(resp.status().is_success());
+        let binbytes = resp.bytes().await.unwrap();
+        ensure_checksum(&binbytes, &latest, checksum).unwrap();
+    }
 }
