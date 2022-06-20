@@ -1,4 +1,6 @@
+use reqwest::StatusCode;
 use thiserror::Error;
+use url::Url;
 
 /// Error types from the svm_lib crate.
 #[derive(Debug, Error)]
@@ -23,4 +25,6 @@ pub enum SolcVmError {
     SemverError(#[from] semver::Error),
     #[error(transparent)]
     UrlError(#[from] url::ParseError),
+    #[error("Received unsuccessful response with code {1} for {0}")]
+    UnsuccessfulResponse(Url, StatusCode),
 }
