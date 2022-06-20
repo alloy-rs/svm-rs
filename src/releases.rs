@@ -182,12 +182,11 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
         .await?
         .json::<Releases>()
         .await?;
-        releases.builds = releases
+        releases
             .builds
-            .iter()
-            .filter(|b| b.version.lt(&MACOS_AARCH64_NATIVE))
-            .cloned()
-            .collect();
+            .retain(|b| b.version.lt(&MACOS_AARCH64_NATIVE));
+        releases.releases.retain(|v, _| v.lt(&MACOS_AARCH64_NATIVE));
+
         releases.builds.extend_from_slice(&native.builds);
         releases.releases.append(&mut native.releases);
         return Ok(releases);
