@@ -163,8 +163,15 @@ pub fn blocking_install(version: &Version) -> Result<PathBuf, SolcVmError> {
         .timeout(REQUEST_TIMEOUT)
         .build()
         .expect("reqwest::Client::new()")
-        .get(download_url)
+        .get(download_url.clone())
         .send()?;
+
+    if !res.status().is_success() {
+        return Err(SolcVmError::UnsuccessfulResponse(
+            download_url,
+            res.status(),
+        ));
+    }
 
     let binbytes = res.bytes()?;
     ensure_checksum(&binbytes, version, checksum)?;
@@ -200,9 +207,16 @@ pub async fn install(version: &Version) -> Result<PathBuf, SolcVmError> {
         .timeout(REQUEST_TIMEOUT)
         .build()
         .expect("reqwest::Client::new()")
-        .get(download_url)
+        .get(download_url.clone())
         .send()
         .await?;
+
+    if !res.status().is_success() {
+        return Err(SolcVmError::UnsuccessfulResponse(
+            download_url,
+            res.status(),
+        ));
+    }
 
     let binbytes = res.bytes().await?;
     ensure_checksum(&binbytes, version, checksum)?;
