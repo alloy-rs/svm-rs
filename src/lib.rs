@@ -7,6 +7,7 @@ use std::{
     fs,
     io::{Cursor, Write},
     path::PathBuf,
+    process::Command,
 };
 
 use std::time::Duration;
@@ -68,7 +69,26 @@ impl Installer {
         let mut content = Cursor::new(&self.binbytes);
         std::io::copy(&mut content, &mut f)?;
 
-        Ok(solc_path)
+        // patch the binaries to use the correct dynamic linker if we're on nixos
+        if platform::is_nixos() {
+            let output = Command::new("nix-shell")
+                                 .arg("-p")
+                                 .arg("patchelf")
+                                 .arg("--run")
+                                 .arg(format!("patchelf --set-interpreter \"$(cat $NIX_CC/nix-support/dynamic-linker)\" {}", solc_path.display()))
+                                 .output()
+                                 .expect("Failed to execute command");
+
+            match output.status.success() {
+                true => Ok(solc_path),
+                false => Err(SolcVmError::CouldNotPatchForNixOs(
+                        String::from_utf8(output.stdout).expect("Found invalid UTF-8 when parsing stdout"),
+                        String::from_utf8(output.stderr).expect("Found invalid UTF-8 when parsing stderr"),
+                )),
+            }
+        } else {
+            Ok(solc_path)
+        }
     }
 }
 
