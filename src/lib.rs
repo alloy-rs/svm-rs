@@ -69,26 +69,33 @@ impl Installer {
         let mut content = Cursor::new(&self.binbytes);
         std::io::copy(&mut content, &mut f)?;
 
-        // patch the binaries to use the correct dynamic linker if we're on nixos
         if platform::is_nixos() {
-            let output = Command::new("nix-shell")
-                                 .arg("-p")
-                                 .arg("patchelf")
-                                 .arg("--run")
-                                 .arg(format!("patchelf --set-interpreter \"$(cat $NIX_CC/nix-support/dynamic-linker)\" {}", solc_path.display()))
-                                 .output()
-                                 .expect("Failed to execute command");
-
-            match output.status.success() {
-                true => Ok(solc_path),
-                false => Err(SolcVmError::CouldNotPatchForNixOs(
-                        String::from_utf8(output.stdout).expect("Found invalid UTF-8 when parsing stdout"),
-                        String::from_utf8(output.stderr).expect("Found invalid UTF-8 when parsing stderr"),
-                )),
-            }
+            patch_for_nixos(solc_path)
         } else {
             Ok(solc_path)
         }
+    }
+}
+
+/// Patch the given binary to use the dynamic linker provided by nixos
+pub fn patch_for_nixos(bin: PathBuf) -> Result<PathBuf, SolcVmError> {
+    let output = Command::new("nix-shell")
+        .arg("-p")
+        .arg("patchelf")
+        .arg("--run")
+        .arg(format!(
+            "patchelf --set-interpreter \"$(cat $NIX_CC/nix-support/dynamic-linker)\" {}",
+            bin.display()
+        ))
+        .output()
+        .expect("Failed to execute command");
+
+    match output.status.success() {
+        true => Ok(bin),
+        false => Err(SolcVmError::CouldNotPatchForNixOs(
+            String::from_utf8(output.stdout).expect("Found invalid UTF-8 when parsing stdout"),
+            String::from_utf8(output.stderr).expect("Found invalid UTF-8 when parsing stderr"),
+        )),
     }
 }
 
