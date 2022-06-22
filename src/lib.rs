@@ -69,7 +69,7 @@ impl Installer {
         let mut content = Cursor::new(&self.binbytes);
         std::io::copy(&mut content, &mut f)?;
 
-        if platform::is_nixos() {
+        if platform::is_nixos() && self.version.major == 0 && self.version.minor >= 8 {
             patch_for_nixos(solc_path)
         } else {
             Ok(solc_path)
