@@ -42,6 +42,10 @@ impl FromStr for Platform {
     }
 }
 
+pub fn is_nixos() -> bool {
+    std::path::Path::new("/etc/NIXOS").exists()
+}
+
 /// Read the current machine's platform.
 pub fn platform() -> Platform {
     match (env::consts::OS, env::consts::ARCH) {

@@ -1,5 +1,5 @@
 use once_cell::sync::Lazy;
-use semver::Version;
+use semver::{Version, VersionReq};
 use sha2::Digest;
 
 use std::{
@@ -7,6 +7,7 @@ use std::{
     fs,
     io::{Cursor, Write},
     path::PathBuf,
+    process::Command,
 };
 
 use std::time::Duration;
@@ -43,6 +44,9 @@ pub static SVM_HOME: Lazy<PathBuf> = Lazy::new(|| {
 /// The timeout to use for requests to the source
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 
+/// Version beyond which solc binaries are not fully static, hence need to be patched for NixOS.
+static NIXOS_PATCH_REQ: Lazy<VersionReq> = Lazy::new(|| VersionReq::parse(">=0.8.0").unwrap());
+
 // Installer type that copies binary data to the appropriate solc binary file:
 // 1. create target file to copy binary data
 // 2. copy data
@@ -68,7 +72,33 @@ impl Installer {
         let mut content = Cursor::new(&self.binbytes);
         std::io::copy(&mut content, &mut f)?;
 
-        Ok(solc_path)
+        if platform::is_nixos() && NIXOS_PATCH_REQ.matches(&self.version) {
+            patch_for_nixos(solc_path)
+        } else {
+            Ok(solc_path)
+        }
+    }
+}
+
+/// Patch the given binary to use the dynamic linker provided by nixos
+pub fn patch_for_nixos(bin: PathBuf) -> Result<PathBuf, SolcVmError> {
+    let output = Command::new("nix-shell")
+        .arg("-p")
+        .arg("patchelf")
+        .arg("--run")
+        .arg(format!(
+            "patchelf --set-interpreter \"$(cat $NIX_CC/nix-support/dynamic-linker)\" {}",
+            bin.display()
+        ))
+        .output()
+        .expect("Failed to execute command");
+
+    match output.status.success() {
+        true => Ok(bin),
+        false => Err(SolcVmError::CouldNotPatchForNixOs(
+            String::from_utf8(output.stdout).expect("Found invalid UTF-8 when parsing stdout"),
+            String::from_utf8(output.stderr).expect("Found invalid UTF-8 when parsing stderr"),
+        )),
     }
 
     /// Extracts the solc archive at the version specified destination and returns the path to the

@@ -17,6 +17,8 @@ pub enum SolcVmError {
     ChecksumMismatch(String),
     #[error("Install step for solc version {0} timed out after {1} seconds")]
     Timeout(String, u64),
+    #[error("Unable to patch solc binary for nixos. stdout: {0}. stderr: {1}")]
+    CouldNotPatchForNixOs(String, String),
     #[error(transparent)]
     IoError(#[from] std::io::Error),
     #[error(transparent)]
