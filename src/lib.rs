@@ -80,11 +80,11 @@ impl Installer {
 
         // extract archive
         let mut content = Cursor::new(&self.binbytes);
-        let archive = zip::ZipArchive::new(&mut content)?;
-        archive.extract(version_path)?;
+        let mut archive = zip::ZipArchive::new(&mut content)?;
+        archive.extract(version_path.as_path())?;
 
         // rename solc binary
-        std::fs::rename(version_path.join("solc.exe"), solc_path);
+        std::fs::rename(version_path.join("solc.exe"), solc_path.as_path());
 
         Ok(solc_path)
     }
