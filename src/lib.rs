@@ -73,7 +73,7 @@ impl Installer {
 
     /// Extracts the solc archive at the version specified destination and returns the path to the
     /// installed solc binary.
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
     fn install_zip(&self) -> Result<PathBuf, SolcVmError> {
         let version_path = version_path(self.version.to_string().as_str());
         let solc_path = version_path.join(&format!("solc-{}", self.version));
