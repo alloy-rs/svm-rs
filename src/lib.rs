@@ -70,6 +70,24 @@ impl Installer {
 
         Ok(solc_path)
     }
+
+    /// Extracts the solc archive at the version specified destination and returns the path to the
+    /// installed solc binary.
+    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    fn install_zip(&self) -> Result<PathBuf, SolcVmError> {
+        let version_path = version_path(self.version.to_string().as_str());
+        let solc_path = version_path.join(&format!("solc-{}", self.version));
+
+        // extract archive
+        let mut content = Cursor::new(&self.binbytes);
+        let mut archive = zip::ZipArchive::new(&mut content)?;
+        archive.extract(version_path.as_path())?;
+
+        // rename solc binary
+        std::fs::rename(version_path.join("solc.exe"), solc_path.as_path())?;
+
+        Ok(solc_path)
+    }
 }
 
 /// Derive path to a specific Solc version's binary.
@@ -182,7 +200,11 @@ pub fn blocking_install(version: &Version) -> Result<PathBuf, SolcVmError> {
     // same version of solc.
     let _lock = try_lock_file(lock_path)?;
 
-    do_install(version.clone(), binbytes.to_vec())
+    do_install(
+        version.clone(),
+        binbytes.to_vec(),
+        artifact.to_string().as_str(),
+    )
 }
 
 /// Installs the provided version of Solc in the machine.
@@ -227,15 +249,29 @@ pub async fn install(version: &Version) -> Result<PathBuf, SolcVmError> {
     // same version of solc.
     let _lock = try_lock_file(lock_path)?;
 
-    do_install(version.clone(), binbytes.to_vec())
+    do_install(
+        version.clone(),
+        binbytes.to_vec(),
+        artifact.to_string().as_str(),
+    )
 }
 
-fn do_install(version: Version, binbytes: Vec<u8>) -> Result<PathBuf, SolcVmError> {
+fn do_install(
+    version: Version,
+    binbytes: Vec<u8>,
+    _artifact: &str,
+) -> Result<PathBuf, SolcVmError> {
     let installer = {
         setup_version(version.to_string().as_str())?;
 
         Installer { version, binbytes }
     };
+
+    // Solc versions <= 0.7.1 are .zip files for Windows only
+    #[cfg(target_os = "windows")]
+    if _artifact.ends_with(".zip") {
+        return installer.install_zip();
+    }
 
     installer.install()
 }
@@ -445,5 +481,25 @@ mod tests {
         assert!(resp.status().is_success());
         let binbytes = resp.bytes().await.unwrap();
         ensure_checksum(&binbytes, &latest, checksum).unwrap();
+    }
+
+    #[tokio::test]
+    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    async fn can_install_windows_zip_release() {
+        let version = "0.7.1".parse().unwrap();
+        install(&version).await.unwrap();
+        let solc_path =
+            version_path(version.to_string().as_str()).join(&format!("solc-{}", version));
+        let output = Command::new(&solc_path)
+            .arg("--version")
+            .stdin(Stdio::piped())
+            .stderr(Stdio::piped())
+            .stdout(Stdio::piped())
+            .output()
+            .unwrap();
+
+        assert!(String::from_utf8_lossy(&output.stdout)
+            .as_ref()
+            .contains("0.7.1"));
     }
 }
