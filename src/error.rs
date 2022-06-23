@@ -27,4 +27,7 @@ pub enum SolcVmError {
     UrlError(#[from] url::ParseError),
     #[error("Received unsuccessful response with code {1} for {0}")]
     UnsuccessfulResponse(Url, StatusCode),
+    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    #[error(transparent)]
+    ZipError(#[from] zip::result::ZipError),
 }
