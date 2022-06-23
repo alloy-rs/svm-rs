@@ -84,7 +84,7 @@ impl Installer {
         archive.extract(version_path.as_path())?;
 
         // rename solc binary
-        std::fs::rename(version_path.join("solc.exe"), solc_path.as_path());
+        std::fs::rename(version_path.join("solc.exe"), solc_path.as_path())?;
 
         Ok(solc_path)
     }
