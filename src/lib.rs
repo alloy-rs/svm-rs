@@ -78,6 +78,24 @@ impl Installer {
             Ok(solc_path)
         }
     }
+
+    /// Extracts the solc archive at the version specified destination and returns the path to the
+    /// installed solc binary.
+    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    fn install_zip(&self) -> Result<PathBuf, SolcVmError> {
+        let version_path = version_path(self.version.to_string().as_str());
+        let solc_path = version_path.join(&format!("solc-{}", self.version));
+
+        // extract archive
+        let mut content = Cursor::new(&self.binbytes);
+        let mut archive = zip::ZipArchive::new(&mut content)?;
+        archive.extract(version_path.as_path())?;
+
+        // rename solc binary
+        std::fs::rename(version_path.join("solc.exe"), solc_path.as_path())?;
+
+        Ok(solc_path)
+    }
 }
 
 /// Patch the given binary to use the dynamic linker provided by nixos
@@ -99,24 +117,6 @@ pub fn patch_for_nixos(bin: PathBuf) -> Result<PathBuf, SolcVmError> {
             String::from_utf8(output.stdout).expect("Found invalid UTF-8 when parsing stdout"),
             String::from_utf8(output.stderr).expect("Found invalid UTF-8 when parsing stderr"),
         )),
-    }
-
-    /// Extracts the solc archive at the version specified destination and returns the path to the
-    /// installed solc binary.
-    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
-    fn install_zip(&self) -> Result<PathBuf, SolcVmError> {
-        let version_path = version_path(self.version.to_string().as_str());
-        let solc_path = version_path.join(&format!("solc-{}", self.version));
-
-        // extract archive
-        let mut content = Cursor::new(&self.binbytes);
-        let mut archive = zip::ZipArchive::new(&mut content)?;
-        archive.extract(version_path.as_path())?;
-
-        // rename solc binary
-        std::fs::rename(version_path.join("solc.exe"), solc_path.as_path())?;
-
-        Ok(solc_path)
     }
 }
 
@@ -298,7 +298,7 @@ fn do_install(
     };
 
     // Solc versions <= 0.7.1 are .zip files for Windows only
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
     if _artifact.ends_with(".zip") {
         return installer.install_zip();
     }
