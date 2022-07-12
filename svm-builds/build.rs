@@ -105,7 +105,7 @@ pub const TARGET_PLATFORM: &str = "{}";
     ));
 }
 
-fn main() {
+fn generate() {
     let platform = get_platform();
     let releases = svm::blocking_all_releases(platform).expect("Failed to fetch releases");
 
@@ -129,4 +129,28 @@ pub static RELEASE_LIST_JSON : &str = {}"{}"{};"#,
     ));
 
     writer.finish();
+}
+
+/// generates an empty `RELEASE_LIST_JSON` static
+#[cfg(feature = "_offline")]
+fn generate_offline() {
+    let mut writer = build_const::ConstWriter::for_build("builds")
+        .unwrap()
+        .finish_dependencies();
+
+    let release_json = serde_json::to_string(&Releases::default()).unwrap();
+    writer.add_raw(&format!(
+        r#"
+/// JSON release list
+pub static RELEASE_LIST_JSON : &str = {}"{}"{};"#,
+        "r#", release_json, "#"
+    ));
+}
+
+fn main() {
+    #[cfg(not(feature = "_offline"))]
+    generate();
+
+    #[cfg(feature = "_offline")]
+    generate_offline();
 }
