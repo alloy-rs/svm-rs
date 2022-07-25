@@ -132,7 +132,6 @@ pub static RELEASE_LIST_JSON : &str = {}"{}"{};"#,
 }
 
 /// generates an empty `RELEASE_LIST_JSON` static
-#[cfg(feature = "_offline")]
 fn generate_offline() {
     let mut writer = build_const::ConstWriter::for_build("builds")
         .unwrap()
