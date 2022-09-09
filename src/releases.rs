@@ -35,10 +35,10 @@ static LINUX_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
 static MACOS_AARCH64_NATIVE: Lazy<Version> = Lazy::new(|| Version::new(0, 8, 5));
 
 static MACOS_AARCH64_URL_PREFIX: &str =
-    "https://github.com/roynalnaruto/solc-builds/raw/fc7263e8b571b6a4c754d443fa4b7b4236b4735f/macosx/aarch64";
+    "https://github.com/roynalnaruto/solc-builds/raw/ff4ea8a7bbde4488428de69f2c40a7fc56184f5e/macosx/aarch64";
 
 static MACOS_AARCH64_RELEASES_URL: &str =
-    "https://github.com/roynalnaruto/solc-builds/raw/fc7263e8b571b6a4c754d443fa4b7b4236b4735f/macosx/aarch64/list.json";
+    "https://github.com/roynalnaruto/solc-builds/raw/ff4ea8a7bbde4488428de69f2c40a7fc56184f5e/macosx/aarch64/list.json";
 
 /// Defines the struct that the JSON-formatted release list can be deserialized into.
 ///
