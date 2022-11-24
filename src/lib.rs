@@ -123,7 +123,7 @@ pub fn patch_for_nixos(bin: PathBuf) -> Result<PathBuf, SolcVmError> {
 /// Derive path to a specific Solc version's binary.
 pub fn version_path(version: &str) -> PathBuf {
     let mut version_path = SVM_HOME.to_path_buf();
-    version_path.push(&version);
+    version_path.push(version);
     version_path
 }
 
