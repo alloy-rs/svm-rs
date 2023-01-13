@@ -140,12 +140,9 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError
             Platform::MacOsAmd64,
         ))?
         .json::<Releases>()?;
-        releases.builds = releases
+        releases
             .builds
-            .iter()
-            .filter(|b| b.version.lt(&MACOS_AARCH64_NATIVE))
-            .cloned()
-            .collect();
+            .retain(|b| b.version.lt(&MACOS_AARCH64_NATIVE));
         releases.builds.extend_from_slice(&native.builds);
         releases.releases.append(&mut native.releases);
         return Ok(releases);
