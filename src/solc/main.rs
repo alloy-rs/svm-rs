@@ -7,7 +7,7 @@ fn main() -> anyhow::Result<()> {
     let mut version_path = svm_lib::version_path(version.to_string().as_str());
     version_path.push(format!("solc-{}", version.to_string().as_str()));
 
-    Command::new(version_path).args(args).spawn()?;
-
-    Ok(())
+    let status = Command::new(version_path).args(args).status()?;
+    let code = status.code().unwrap_or(-1);
+    std::process::exit(code);
 }
