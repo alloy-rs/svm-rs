@@ -61,7 +61,7 @@ impl Installer {
     /// Installs the solc version at the version specific destination and returns the path to the installed solc file.
     fn install(&self) -> Result<PathBuf, SolcVmError> {
         let version_path = version_path(self.version.to_string().as_str());
-        let solc_path = version_path.join(&format!("solc-{}", self.version));
+        let solc_path = version_path.join(format!("solc-{}", self.version));
         // create solc file.
         let mut f = fs::File::create(&solc_path)?;
 
@@ -159,7 +159,7 @@ pub fn unset_global_version() -> Result<(), SolcVmError> {
 pub fn installed_versions() -> Result<Vec<Version>, SolcVmError> {
     let home_dir = SVM_HOME.to_path_buf();
     let mut versions = vec![];
-    for v in fs::read_dir(&home_dir)? {
+    for v in fs::read_dir(home_dir)? {
         let v = v?;
         if v.file_name() != OsString::from(".global-version".to_string()) {
             versions.push(Version::parse(
@@ -380,7 +380,7 @@ impl Drop for LockFile {
 
 /// Returns the lockfile to use for a specific file
 fn lock_file_path(version: &Version) -> PathBuf {
-    SVM_HOME.join(&format!(".lock-solc-{}", version))
+    SVM_HOME.join(format!(".lock-solc-{}", version))
 }
 
 #[cfg(test)]
