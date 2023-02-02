@@ -148,7 +148,7 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError
         return Ok(releases);
     }
 
-    let releases = reqwest::blocking::get(format!("{}/{}/list.json", SOLC_RELEASES_URL, platform))?
+    let releases = reqwest::blocking::get(format!("{SOLC_RELEASES_URL}/{platform}/list.json"))?
         .json::<Releases>()?;
     Ok(unified_releases(releases, platform))
 }
@@ -189,7 +189,7 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
         return Ok(releases);
     }
 
-    let releases = get(format!("{}/{}/list.json", SOLC_RELEASES_URL, platform))
+    let releases = get(format!("{SOLC_RELEASES_URL}/{platform}/list.json"))
         .await?
         .json::<Releases>()
         .await?;
@@ -220,16 +220,14 @@ pub fn artifact_url(
         && version.ge(&OLD_VERSION_MIN)
     {
         return Ok(Url::parse(&format!(
-            "{}/{}",
-            OLD_SOLC_RELEASES_DOWNLOAD_PREFIX, artifact
+            "{OLD_SOLC_RELEASES_DOWNLOAD_PREFIX}/{artifact}"
         ))?);
     }
 
     if platform == Platform::LinuxAarch64 {
         if LINUX_AARCH64_RELEASES.releases.contains_key(version) {
             return Ok(Url::parse(&format!(
-                "{}/{}",
-                LINUX_AARCH64_URL_PREFIX, artifact
+                "{LINUX_AARCH64_URL_PREFIX}/{artifact}"
             ))?);
         } else {
             return Err(SolcVmError::UnsupportedVersion(
@@ -249,8 +247,7 @@ pub fn artifact_url(
     if platform == Platform::MacOsAarch64 {
         if version.ge(&MACOS_AARCH64_NATIVE) {
             return Ok(Url::parse(&format!(
-                "{}/{}",
-                MACOS_AARCH64_URL_PREFIX, artifact
+                "{MACOS_AARCH64_URL_PREFIX}/{artifact}"
             ))?);
         } else {
             return Ok(Url::parse(&format!(
@@ -263,8 +260,7 @@ pub fn artifact_url(
     }
 
     Ok(Url::parse(&format!(
-        "{}/{}/{}",
-        SOLC_RELEASES_URL, platform, artifact
+        "{SOLC_RELEASES_URL}/{platform}/{artifact}"
     ))?)
 }
 

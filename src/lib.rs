@@ -380,7 +380,7 @@ impl Drop for LockFile {
 
 /// Returns the lockfile to use for a specific file
 fn lock_file_path(version: &Version) -> PathBuf {
-    SVM_HOME.join(format!(".lock-solc-{}", version))
+    SVM_HOME.join(format!(".lock-solc-{version}"))
 }
 
 #[cfg(test)]
@@ -403,8 +403,7 @@ mod tests {
         assert_eq!(
             artifact_url(Platform::LinuxAarch64, &version, artifact).unwrap(),
             Url::parse(&format!(
-                "https://github.com/nikitastupin/solc/raw/bd9079b31dd4cb06a98cd3c76b3c3d3ab956de5e/linux/aarch64/{}",
-                artifact
+                "https://github.com/nikitastupin/solc/raw/bd9079b31dd4cb06a98cd3c76b3c3d3ab956de5e/linux/aarch64/{artifact}"
             ))
             .unwrap(),
         )
@@ -436,9 +435,8 @@ mod tests {
     async fn test_version() {
         let version = "0.8.10".parse().unwrap();
         install(&version).await.unwrap();
-        let solc_path =
-            version_path(version.to_string().as_str()).join(&format!("solc-{}", version));
-        let output = Command::new(&solc_path)
+        let solc_path = version_path(version.to_string().as_str()).join(format!("solc-{version}"));
+        let output = Command::new(solc_path)
             .arg("--version")
             .stdin(Stdio::piped())
             .stderr(Stdio::piped())
@@ -456,9 +454,8 @@ mod tests {
     fn blocking_test_version() {
         let version = "0.8.10".parse().unwrap();
         blocking_install(&version).unwrap();
-        let solc_path =
-            version_path(version.to_string().as_str()).join(&format!("solc-{}", version));
-        let output = Command::new(&solc_path)
+        let solc_path = version_path(version.to_string().as_str()).join(format!("solc-{version}"));
+        let output = Command::new(solc_path)
             .arg("--version")
             .stdin(Stdio::piped())
             .stderr(Stdio::piped())
