@@ -25,7 +25,7 @@ static OLD_SOLC_RELEASES: Lazy<Releases> = Lazy::new(|| {
 });
 
 static LINUX_AARCH64_URL_PREFIX: &str =
-    "https://github.com/nikitastupin/solc/raw/bd9079b31dd4cb06a98cd3c76b3c3d3ab956de5e/linux/aarch64";
+    "https://github.com/nikitastupin/solc/raw/01a11efffb8111db0637d4b47a8360bb66979d82/linux/aarch64";
 
 static LINUX_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
     serde_json::from_str(include_str!("../list/linux-aarch64.json"))
@@ -35,10 +35,10 @@ static LINUX_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
 static MACOS_AARCH64_NATIVE: Lazy<Version> = Lazy::new(|| Version::new(0, 8, 5));
 
 static MACOS_AARCH64_URL_PREFIX: &str =
-    "https://github.com/roynalnaruto/solc-builds/raw/ff4ea8a7bbde4488428de69f2c40a7fc56184f5e/macosx/aarch64";
+    "https://github.com/roynalnaruto/solc-builds/raw/33fe42fdb907265ea6f543d1eba18ffe9a05fa6f/macosx/aarch64";
 
 static MACOS_AARCH64_RELEASES_URL: &str =
-    "https://github.com/roynalnaruto/solc-builds/raw/ff4ea8a7bbde4488428de69f2c40a7fc56184f5e/macosx/aarch64/list.json";
+    "https://github.com/roynalnaruto/solc-builds/raw/33fe42fdb907265ea6f543d1eba18ffe9a05fa6f/macosx/aarch64/list.json";
 
 /// Defines the struct that the JSON-formatted release list can be deserialized into.
 ///
@@ -148,7 +148,7 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError
         return Ok(releases);
     }
 
-    let releases = reqwest::blocking::get(format!("{}/{}/list.json", SOLC_RELEASES_URL, platform))?
+    let releases = reqwest::blocking::get(format!("{SOLC_RELEASES_URL}/{platform}/list.json"))?
         .json::<Releases>()?;
     Ok(unified_releases(releases, platform))
 }
@@ -189,7 +189,7 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
         return Ok(releases);
     }
 
-    let releases = get(format!("{}/{}/list.json", SOLC_RELEASES_URL, platform))
+    let releases = get(format!("{SOLC_RELEASES_URL}/{platform}/list.json"))
         .await?
         .json::<Releases>()
         .await?;
@@ -220,16 +220,14 @@ pub fn artifact_url(
         && version.ge(&OLD_VERSION_MIN)
     {
         return Ok(Url::parse(&format!(
-            "{}/{}",
-            OLD_SOLC_RELEASES_DOWNLOAD_PREFIX, artifact
+            "{OLD_SOLC_RELEASES_DOWNLOAD_PREFIX}/{artifact}"
         ))?);
     }
 
     if platform == Platform::LinuxAarch64 {
         if LINUX_AARCH64_RELEASES.releases.contains_key(version) {
             return Ok(Url::parse(&format!(
-                "{}/{}",
-                LINUX_AARCH64_URL_PREFIX, artifact
+                "{LINUX_AARCH64_URL_PREFIX}/{artifact}"
             ))?);
         } else {
             return Err(SolcVmError::UnsupportedVersion(
@@ -249,8 +247,7 @@ pub fn artifact_url(
     if platform == Platform::MacOsAarch64 {
         if version.ge(&MACOS_AARCH64_NATIVE) {
             return Ok(Url::parse(&format!(
-                "{}/{}",
-                MACOS_AARCH64_URL_PREFIX, artifact
+                "{MACOS_AARCH64_URL_PREFIX}/{artifact}"
             ))?);
         } else {
             return Ok(Url::parse(&format!(
@@ -263,8 +260,7 @@ pub fn artifact_url(
     }
 
     Ok(Url::parse(&format!(
-        "{}/{}/{}",
-        SOLC_RELEASES_URL, platform, artifact
+        "{SOLC_RELEASES_URL}/{platform}/{artifact}"
     ))?)
 }
 
@@ -280,8 +276,8 @@ mod tests {
 
     #[test]
     fn test_linux_aarch64() {
-        assert_eq!(LINUX_AARCH64_RELEASES.releases.len(), 49);
-        assert_eq!(LINUX_AARCH64_RELEASES.builds.len(), 49);
+        assert_eq!(LINUX_AARCH64_RELEASES.releases.len(), 50);
+        assert_eq!(LINUX_AARCH64_RELEASES.builds.len(), 50);
     }
 
     #[tokio::test]

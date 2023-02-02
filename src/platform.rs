@@ -37,7 +37,7 @@ impl FromStr for Platform {
             "macosx-amd64" => Ok(Platform::MacOsAmd64),
             "macosx-aarch64" => Ok(Platform::MacOsAarch64),
             "windows-amd64" => Ok(Platform::WindowsAmd64),
-            s => Err(format!("unsupported platform {}", s)),
+            s => Err(format!("unsupported platform {s}")),
         }
     }
 }
