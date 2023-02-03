@@ -346,7 +346,11 @@ fn ensure_checksum(
     let cs = &hasher.finalize()[..];
     // checksum does not match
     if cs != expected_checksum {
-        return Err(SolcVmError::ChecksumMismatch(version.to_string()));
+        return Err(SolcVmError::ChecksumMismatch {
+            version: version.to_string(),
+            expected: hex::encode(&expected_checksum),
+            actual: hex::encode(cs),
+        });
     }
     Ok(())
 }
