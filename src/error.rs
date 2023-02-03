@@ -13,8 +13,12 @@ pub enum SolcVmError {
     UnsupportedVersion(String, String),
     #[error("Version {0} not installed")]
     VersionNotInstalled(String),
-    #[error("Checksum mismatch for version {0}")]
-    ChecksumMismatch(String),
+    #[error("Checksum mismatch for version {version}: expected: {expected}, actual: {actual}")]
+    ChecksumMismatch {
+        version: String,
+        expected: String,
+        actual: String,
+    },
     #[error("Install step for solc version {0} timed out after {1} seconds")]
     Timeout(String, u64),
     #[error("Unable to patch solc binary for nixos. stdout: {0}. stderr: {1}")]
