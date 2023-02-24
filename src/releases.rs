@@ -24,13 +24,13 @@ static OLD_SOLC_RELEASES: Lazy<Releases> = Lazy::new(|| {
         .expect("could not parse list linux-arm64-old.json")
 });
 
+static LINUX_AARCH64_MIN: Lazy<Version> = Lazy::new(|| Version::new(0, 5, 0));
+
 static LINUX_AARCH64_URL_PREFIX: &str =
     "https://github.com/nikitastupin/solc/raw/af2fce8988e41753ab4f726e0273ea8244de5dba/linux/aarch64";
 
-static LINUX_AARCH64_RELEASES: Lazy<Releases> = Lazy::new(|| {
-    serde_json::from_str(include_str!("../list/linux-aarch64.json"))
-        .expect("could not parse list linux-aarch64.json")
-});
+static LINUX_AARCH64_RELEASES_URL: &str =
+    "https://github.com/nikitastupin/solc/raw/af2fce8988e41753ab4f726e0273ea8244de5dba/linux/aarch64/list.json";
 
 static MACOS_AARCH64_NATIVE: Lazy<Version> = Lazy::new(|| Version::new(0, 8, 5));
 
@@ -122,7 +122,7 @@ mod hex_string {
 #[cfg(feature = "blocking")]
 pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
     if platform == Platform::LinuxAarch64 {
-        return Ok(LINUX_AARCH64_RELEASES.clone());
+        return Ok(reqwest::blocking::get(LINUX_AARCH64_RELEASES_URL)?.json::<Releases>()?);
     }
 
     if platform == Platform::MacOsAarch64 {
@@ -156,7 +156,10 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError
 /// Fetch all releases available for the provided platform.
 pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
     if platform == Platform::LinuxAarch64 {
-        return Ok(LINUX_AARCH64_RELEASES.clone());
+        return Ok(get(LINUX_AARCH64_RELEASES_URL)
+            .await?
+            .json::<Releases>()
+            .await?);
     }
 
     if platform == Platform::MacOsAarch64 {
@@ -225,7 +228,7 @@ pub fn artifact_url(
     }
 
     if platform == Platform::LinuxAarch64 {
-        if LINUX_AARCH64_RELEASES.releases.contains_key(version) {
+        if version.ge(&LINUX_AARCH64_MIN) {
             return Ok(Url::parse(&format!(
                 "{LINUX_AARCH64_URL_PREFIX}/{artifact}"
             ))?);
@@ -272,12 +275,6 @@ mod tests {
     fn test_old_releases_deser() {
         assert_eq!(OLD_SOLC_RELEASES.releases.len(), 10);
         assert_eq!(OLD_SOLC_RELEASES.builds.len(), 10);
-    }
-
-    #[test]
-    fn test_linux_aarch64() {
-        assert_eq!(LINUX_AARCH64_RELEASES.releases.len(), 51);
-        assert_eq!(LINUX_AARCH64_RELEASES.builds.len(), 51);
     }
 
     #[tokio::test]
