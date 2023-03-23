@@ -1348,6 +1348,7 @@ dependencies = [
  "build_const",
  "hex",
  "semver",
+ "serde",
  "serde_json",
  "svm-rs",
 ]

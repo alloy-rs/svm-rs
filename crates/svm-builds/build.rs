@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::fs::File;
+
 use semver::Version;
 use svm::Releases;
 
@@ -13,6 +15,15 @@ use svm::Releases;
 /// - "macosx-aarch64"
 /// - "windows-amd64"
 pub const SVM_TARGET_PLATFORM: &str = "SVM_TARGET_PLATFORM";
+
+/// The path to the releases JSON file, that was pre-fetched manually. If this
+/// variable is defined, svm-builds won't attempt to deduce anything about the
+/// platfrom or perform network calls, and will instead treat the file as the
+/// source of truth.
+///
+/// Must follow the same format as the upstream `list.json`, e.g.
+/// [this one](https://raw.githubusercontent.com/nikitastupin/solc/af2fce8988e41753ab4f726e0273ea8244de5dba/linux/aarch64/list.json)
+pub const SVM_RELEASES_LIST_JSON: &str = "SVM_RELEASES_LIST_JSON";
 
 /// Returns the platform to generate the constants for
 ///
@@ -110,7 +121,16 @@ pub const TARGET_PLATFORM: &str = "{}";
 
 fn generate() {
     let platform = get_platform();
-    let releases = svm::blocking_all_releases(platform).expect("Failed to fetch releases");
+
+    let releases: Releases = if let Ok(file_path) = std::env::var(SVM_RELEASES_LIST_JSON) {
+        let file = File::open(file_path)
+            .expect("SVM_RELEASES_LIST_JSON defined, but cannot read the file referenced");
+
+        serde_json::from_reader(file)
+            .expect("Fialed to parse the JSON from SVM_RELEASES_LIST_JSON file")
+    } else {
+        svm::blocking_all_releases(platform).expect("Failed to fetch releases")
+    };
 
     let mut writer = build_const::ConstWriter::for_build("builds")
         .unwrap()
