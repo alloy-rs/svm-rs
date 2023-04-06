@@ -45,7 +45,7 @@ pub static SVM_HOME: Lazy<PathBuf> = Lazy::new(|| {
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Version beyond which solc binaries are not fully static, hence need to be patched for NixOS.
-static NIXOS_PATCH_REQ: Lazy<VersionReq> = Lazy::new(|| VersionReq::parse(">=0.8.0").unwrap());
+static NIXOS_PATCH_REQ: Lazy<VersionReq> = Lazy::new(|| VersionReq::parse(">=0.7.6").unwrap());
 
 // Installer type that copies binary data to the appropriate solc binary file:
 // 1. create target file to copy binary data
