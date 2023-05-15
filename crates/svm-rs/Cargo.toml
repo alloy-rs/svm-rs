@@ -63,9 +63,11 @@ default = ["rustls", "cli", "solc"]
 # lib
 openssl = ["reqwest/native-tls"]
 rustls = ["reqwest/rustls-tls"]
-sha2-asm = ["sha2/asm"]
 blocking = ["reqwest/blocking"]
 
 # bin
 cli = ["anyhow", "clap", "console", "dialoguer", "indicatif", "itertools", "tokio"]
 solc = ["anyhow"]
+
+# deprecated
+sha2-asm = []
