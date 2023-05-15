@@ -29,15 +29,16 @@ pub use releases::blocking_all_releases;
 
 /// Declare path to Solc Version Manager's home directory, "~/.svm" on Unix-based machines.
 pub static SVM_HOME: Lazy<PathBuf> = Lazy::new(|| {
-    cfg_if::cfg_if! {
-        if #[cfg(test)] {
-            let dir = tempfile::tempdir().expect("could not create temp directory");
-            dir.path().join(".svm")
-        } else {
-            let mut user_home = home::home_dir().expect("could not detect user home directory");
-            user_home.push(".svm");
-            user_home
-        }
+    #[cfg(test)]
+    {
+        let dir = tempfile::tempdir().expect("could not create temp directory");
+        dir.path().join(".svm")
+    }
+    #[cfg(not(test))]
+    {
+        let mut user_home = home::home_dir().expect("could not detect user home directory");
+        user_home.push(".svm");
+        user_home
     }
 });
 

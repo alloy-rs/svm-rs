@@ -1,0 +1,38 @@
+[package]
+name = "svm-rs-builds"
+version = "0.1.14"
+edition = "2021"
+rust-version = "1.65"
+authors = [
+    "Matthias Seitz <matthias.seitz@outlook.de>",
+    "Rohit Narurkar <rohit.narurkar@protonmail.com>",
+]
+license = "MIT OR Apache-2.0"
+readme = "../../README.md"
+repository = "https://github.com/roynalnaruto/svm-rs"
+homepage = "https://github.com/roynalnaruto/svm-rs"
+description = "Solidity compiler builds"
+
+[build-dependencies]
+svm = { package = "svm-rs", path = "../svm-rs", version = "0.2.22", default-features = false, features = [
+    "blocking",
+    "rustls",
+] }
+
+build_const = "0.2"
+hex = "0.4"
+semver = { version = "1.0", features = ["serde"] }
+serde_json = "1.0"
+
+[dependencies]
+build_const = "0.2"
+hex = "0.4"
+semver = { version = "1.0", features = ["serde"] }
+
+[features]
+# helper feature to block network access
+_offline = []
+
+[package.metadata.docs.rs]
+# network access is blocked during builds
+features = ["_offline"]
