@@ -1231,16 +1231,6 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest",
- "sha2-asm",
-]
-
-[[package]]
-name = "sha2-asm"
-version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf27176fb5d15398e3a479c652c20459d9dac830dedd1fa55b42a77dbcdbfcea"
-dependencies = [
- "cc",
 ]
 
 [[package]]
@@ -1288,7 +1278,7 @@ checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
 
 [[package]]
 name = "svm-rs"
-version = "0.2.22"
+version = "0.2.23"
 dependencies = [
  "anyhow",
  "clap",
@@ -1315,7 +1305,7 @@ dependencies = [
 
 [[package]]
 name = "svm-rs-builds"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "build_const",
  "hex",
