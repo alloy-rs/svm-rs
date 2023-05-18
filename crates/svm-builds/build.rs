@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use semver::Version;
 use svm::Releases;
 
@@ -14,7 +16,8 @@ pub const SVM_TARGET_PLATFORM: &str = "SVM_TARGET_PLATFORM";
 
 /// Returns the platform to generate the constants for
 ///
-/// if the `SVM_TARGET_PLATFORM` var is set, this will return the matching [svm::Platform], otherwise the native platform will be used [svm::platform()]
+/// if the `SVM_TARGET_PLATFORM` var is set, this will return the matching [svm::Platform],
+/// otherwise the native platform will be used [svm::platform()].
 fn get_platform() -> svm::Platform {
     if let Ok(s) = std::env::var(SVM_TARGET_PLATFORM) {
         s.parse().unwrap()
