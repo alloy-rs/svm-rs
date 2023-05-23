@@ -38,15 +38,22 @@ pub static SVM_DATA_DIR: Lazy<PathBuf> = Lazy::new(|| {
     }
     #[cfg(not(test))]
     {
-        let mut data_dir = dirs::home_dir().expect("could not detect user home directory");
-        data_dir.push(".svm");
-        if !data_dir.as_path().exists() {
-            data_dir = dirs::data_dir().expect("could not detect data directory");
-            data_dir.push("svm");
-        }
-        data_dir
+        resolve_data_dir()
     }
 });
+
+fn resolve_data_dir() -> PathBuf {
+    let home_dir = dirs::home_dir()
+        .expect("could not detect user home directory")
+        .join(".svm");
+
+    let data_dir = dirs::data_dir().expect("could not detect user data directory");
+    if !home_dir.as_path().exists() && data_dir.as_path().exists() {
+        data_dir.join("svm")
+    } else {
+        home_dir
+    }
+}
 
 /// The timeout to use for requests to the source
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
@@ -406,6 +413,18 @@ mod tests {
     use std::process::{Command, Stdio};
 
     use super::*;
+
+    #[tokio::test]
+    async fn test_data_dir_resolution() {
+        let home_dir = dirs::home_dir().unwrap().join(".svm");
+        let data_dir = dirs::data_dir();
+        let resolved_dir = resolve_data_dir();
+        if home_dir.as_path().exists() || data_dir.is_none() {
+            assert_eq!(resolved_dir.as_path(), home_dir.as_path());
+        } else {
+            assert_eq!(resolved_dir.as_path(), data_dir.unwrap().join("svm"));
+        }
+    }
 
     #[tokio::test]
     async fn test_artifact_url() {
