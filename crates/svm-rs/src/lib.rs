@@ -27,8 +27,10 @@ pub use releases::{all_releases, Releases};
 #[cfg(feature = "blocking")]
 pub use releases::blocking_all_releases;
 
-/// Declare path to Solc Version Manager's home directory, "~/.svm" on Unix-based machines.
-pub static SVM_HOME: Lazy<PathBuf> = Lazy::new(|| {
+/// Declare path to Solc Version Manager's home directory
+/// On unix-based machines, if "~/.svm" already exists, then keep using it.
+/// Otherwise, use $XDG_DATA_HOME or ~/.local/share/svm
+pub static SVM_DATA_DIR: Lazy<PathBuf> = Lazy::new(|| {
     #[cfg(test)]
     {
         let dir = tempfile::tempdir().expect("could not create temp directory");
@@ -36,11 +38,22 @@ pub static SVM_HOME: Lazy<PathBuf> = Lazy::new(|| {
     }
     #[cfg(not(test))]
     {
-        let mut user_home = home::home_dir().expect("could not detect user home directory");
-        user_home.push(".svm");
-        user_home
+        resolve_data_dir()
     }
 });
+
+fn resolve_data_dir() -> PathBuf {
+    let home_dir = dirs::home_dir()
+        .expect("could not detect user home directory")
+        .join(".svm");
+
+    let data_dir = dirs::data_dir().expect("could not detect user data directory");
+    if !home_dir.as_path().exists() && data_dir.as_path().exists() {
+        data_dir.join("svm")
+    } else {
+        home_dir
+    }
+}
 
 /// The timeout to use for requests to the source
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
@@ -123,14 +136,14 @@ pub fn patch_for_nixos(bin: PathBuf) -> Result<PathBuf, SolcVmError> {
 
 /// Derive path to a specific Solc version's binary.
 pub fn version_path(version: &str) -> PathBuf {
-    let mut version_path = SVM_HOME.to_path_buf();
+    let mut version_path = SVM_DATA_DIR.to_path_buf();
     version_path.push(version);
     version_path
 }
 
 /// Derive path to SVM's global version file.
 pub fn global_version_path() -> PathBuf {
-    let mut global_version_path = SVM_HOME.to_path_buf();
+    let mut global_version_path = SVM_DATA_DIR.to_path_buf();
     global_version_path.push(".global-version");
     global_version_path
 }
@@ -158,7 +171,7 @@ pub fn unset_global_version() -> Result<(), SolcVmError> {
 /// Reads the list of Solc versions that have been installed in the machine. The version list is
 /// sorted in ascending order.
 pub fn installed_versions() -> Result<Vec<Version>, SolcVmError> {
-    let home_dir = SVM_HOME.to_path_buf();
+    let home_dir = SVM_DATA_DIR.to_path_buf();
     let mut versions = vec![];
     for v in fs::read_dir(home_dir)? {
         let v = v?;
@@ -195,7 +208,7 @@ pub async fn all_versions() -> Result<Vec<Version>, SolcVmError> {
 /// Blocking version of [`install`]
 #[cfg(feature = "blocking")]
 pub fn blocking_install(version: &Version) -> Result<PathBuf, SolcVmError> {
-    setup_home()?;
+    setup_data_dir()?;
 
     let artifacts = releases::blocking_all_releases(platform::platform())?;
     let artifact = artifacts
@@ -242,7 +255,7 @@ pub fn blocking_install(version: &Version) -> Result<PathBuf, SolcVmError> {
 ///
 /// Returns the path to the solc file.
 pub async fn install(version: &Version) -> Result<PathBuf, SolcVmError> {
-    setup_home()?;
+    setup_data_dir()?;
 
     let artifacts = releases::all_releases(platform::platform()).await?;
     let artifact = artifacts
@@ -314,19 +327,19 @@ pub fn remove_version(version: &Version) -> Result<(), SolcVmError> {
 }
 
 /// Setup SVM home directory.
-pub fn setup_home() -> Result<PathBuf, SolcVmError> {
-    // create ~/.svm
-    let home_dir = SVM_HOME.to_path_buf();
-    if !home_dir.as_path().exists() {
-        fs::create_dir_all(home_dir.clone())?;
+pub fn setup_data_dir() -> Result<PathBuf, SolcVmError> {
+    // create $XDG_DATA_HOME or ~/.local/share/svm, or fallback to ~/.svm
+    let svm_dir = SVM_DATA_DIR.to_path_buf();
+    if !svm_dir.as_path().exists() {
+        fs::create_dir_all(svm_dir.clone())?;
     }
-    // create ~/.svm/.global-version
-    let mut global_version = SVM_HOME.to_path_buf();
+    // create $SVM/.global-version
+    let mut global_version = SVM_DATA_DIR.to_path_buf();
     global_version.push(".global-version");
     if !global_version.as_path().exists() {
         fs::File::create(global_version.as_path())?;
     }
-    Ok(home_dir)
+    Ok(svm_dir)
 }
 
 fn setup_version(version: &str) -> Result<(), SolcVmError> {
@@ -385,7 +398,7 @@ impl Drop for LockFile {
 
 /// Returns the lockfile to use for a specific file
 fn lock_file_path(version: &Version) -> PathBuf {
-    SVM_HOME.join(format!(".lock-solc-{version}"))
+    SVM_DATA_DIR.join(format!(".lock-solc-{version}"))
 }
 
 #[cfg(test)]
@@ -400,6 +413,18 @@ mod tests {
     use std::process::{Command, Stdio};
 
     use super::*;
+
+    #[tokio::test]
+    async fn test_data_dir_resolution() {
+        let home_dir = dirs::home_dir().unwrap().join(".svm");
+        let data_dir = dirs::data_dir();
+        let resolved_dir = resolve_data_dir();
+        if home_dir.as_path().exists() || data_dir.is_none() {
+            assert_eq!(resolved_dir.as_path(), home_dir.as_path());
+        } else {
+            assert_eq!(resolved_dir.as_path(), data_dir.unwrap().join("svm"));
+        }
+    }
 
     #[tokio::test]
     async fn test_artifact_url() {
