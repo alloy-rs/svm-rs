@@ -127,7 +127,7 @@ fn generate() {
             .expect(&format!("{:?} defined, but cannot read the file referenced", SVM_RELEASES_LIST_JSON));
 
         serde_json::from_reader(file)
-            .expect("Fialed to parse the JSON from SVM_RELEASES_LIST_JSON file")
+            .expect(&format!("Failed to parse the JSON from {:?} file", SVM_RELEASES_LIST_JSON))
     } else {
         svm::blocking_all_releases(platform).expect("Failed to fetch releases")
     };
