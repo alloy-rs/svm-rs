@@ -124,7 +124,7 @@ fn generate() {
 
     let releases: Releases = if let Ok(file_path) = std::env::var(SVM_RELEASES_LIST_JSON) {
         let file = File::open(file_path)
-            .expect("SVM_RELEASES_LIST_JSON defined, but cannot read the file referenced");
+            .expect(&format!("{:?} defined, but cannot read the file referenced", SVM_RELEASES_LIST_JSON));
 
         serde_json::from_reader(file)
             .expect("Fialed to parse the JSON from SVM_RELEASES_LIST_JSON file")
