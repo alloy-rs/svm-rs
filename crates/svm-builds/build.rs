@@ -123,15 +123,19 @@ fn generate() {
     let platform = get_platform();
 
     let releases: Releases = if let Ok(file_path) = std::env::var(SVM_RELEASES_LIST_JSON) {
-        let file = File::open(file_path).unwrap_or_else(|_| panic!(
-            "{:?} defined, but cannot read the file referenced",
-            SVM_RELEASES_LIST_JSON
-        ));
+        let file = File::open(file_path).unwrap_or_else(|_| {
+            panic!(
+                "{:?} defined, but cannot read the file referenced",
+                SVM_RELEASES_LIST_JSON
+            )
+        });
 
-        serde_json::from_reader(file).unwrap_or_else(|_| panic!(
-            "Failed to parse the JSON from {:?} file",
-            SVM_RELEASES_LIST_JSON
-        ))
+        serde_json::from_reader(file).unwrap_or_else(|_| {
+            panic!(
+                "Failed to parse the JSON from {:?} file",
+                SVM_RELEASES_LIST_JSON
+            )
+        })
     } else {
         svm::blocking_all_releases(platform).expect("Failed to fetch releases")
     };
