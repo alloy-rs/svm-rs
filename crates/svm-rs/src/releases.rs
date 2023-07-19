@@ -35,10 +35,10 @@ static LINUX_AARCH64_RELEASES_URL: &str =
 static MACOS_AARCH64_NATIVE: Lazy<Version> = Lazy::new(|| Version::new(0, 8, 5));
 
 static MACOS_AARCH64_URL_PREFIX: &str =
-    "https://github.com/ethers-rs/solc-builds/raw/5560a1f4b69f081d120b0df1735bf87cdda2e6b5/macosx/aarch64";
+    "https://github.com/alloy-rs/solc-builds/raw/5560a1f4b69f081d120b0df1735bf87cdda2e6b5/macosx/aarch64";
 
 static MACOS_AARCH64_RELEASES_URL: &str =
-    "https://github.com/ethers-rs/solc-builds/raw/5560a1f4b69f081d120b0df1735bf87cdda2e6b5/macosx/aarch64/list.json";
+    "https://github.com/alloy-rs/solc-builds/raw/5560a1f4b69f081d120b0df1735bf87cdda2e6b5/macosx/aarch64/list.json";
 
 /// Defines the struct that the JSON-formatted release list can be deserialized into.
 ///
@@ -129,7 +129,7 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError
         // The supported versions for both macos-amd64 and macos-aarch64 are the same.
         //
         // 1. For version >= 0.8.5 we fetch native releases from
-        // https://github.com/ethers-rs/solc-builds
+        // https://github.com/alloy-rs/solc-builds
         //
         // 2. For version <= 0.8.4 we fetch releases from https://binaries.soliditylang.org and
         // require Rosetta support.
@@ -166,7 +166,7 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
         // The supported versions for both macos-amd64 and macos-aarch64 are the same.
         //
         // 1. For version >= 0.8.5 we fetch native releases from
-        // https://github.com/ethers-rs/solc-builds
+        // https://github.com/alloy-rs/solc-builds
         //
         // 2. For version <= 0.8.4 we fetch releases from https://binaries.soliditylang.org and
         // require Rosetta support.
