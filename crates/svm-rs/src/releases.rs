@@ -27,18 +27,18 @@ static OLD_SOLC_RELEASES: Lazy<Releases> = Lazy::new(|| {
 static LINUX_AARCH64_MIN: Lazy<Version> = Lazy::new(|| Version::new(0, 5, 0));
 
 static LINUX_AARCH64_URL_PREFIX: &str =
-    "https://github.com/nikitastupin/solc/raw/0e071f4e18220d314689d4742e22e0ca5dfc13f6/linux/aarch64";
+    "https://github.com/nikitastupin/solc/raw/53cde9e4624868254a4ac8ca339661e25cb853ef/linux/aarch64";
 
 static LINUX_AARCH64_RELEASES_URL: &str =
-    "https://github.com/nikitastupin/solc/raw/0e071f4e18220d314689d4742e22e0ca5dfc13f6/linux/aarch64/list.json";
+    "https://github.com/nikitastupin/solc/raw/53cde9e4624868254a4ac8ca339661e25cb853ef/linux/aarch64/list.json";
 
 static MACOS_AARCH64_NATIVE: Lazy<Version> = Lazy::new(|| Version::new(0, 8, 5));
 
 static MACOS_AARCH64_URL_PREFIX: &str =
-    "https://github.com/alloy-rs/solc-builds/raw/5560a1f4b69f081d120b0df1735bf87cdda2e6b5/macosx/aarch64";
+    "https://github.com/alloy-rs/solc-builds/raw/ed203ec3b7b3a6a3e7e1a754608104dae273de4c/macosx/aarch64";
 
 static MACOS_AARCH64_RELEASES_URL: &str =
-    "https://github.com/alloy-rs/solc-builds/raw/5560a1f4b69f081d120b0df1735bf87cdda2e6b5/macosx/aarch64/list.json";
+    "https://github.com/alloy-rs/solc-builds/raw/ed203ec3b7b3a6a3e7e1a754608104dae273de4c/macosx/aarch64/list.json";
 
 /// Defines the struct that the JSON-formatted release list can be deserialized into.
 ///
