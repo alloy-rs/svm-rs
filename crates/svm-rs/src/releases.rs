@@ -27,18 +27,18 @@ static OLD_SOLC_RELEASES: Lazy<Releases> = Lazy::new(|| {
 static LINUX_AARCH64_MIN: Lazy<Version> = Lazy::new(|| Version::new(0, 5, 0));
 
 static LINUX_AARCH64_URL_PREFIX: &str =
-    "https://github.com/nikitastupin/solc/raw/0e071f4e18220d314689d4742e22e0ca5dfc13f6/linux/aarch64";
+    "https://github.com/nikitastupin/solc/raw/53cde9e4624868254a4ac8ca339661e25cb853ef/linux/aarch64";
 
 static LINUX_AARCH64_RELEASES_URL: &str =
-    "https://github.com/nikitastupin/solc/raw/0e071f4e18220d314689d4742e22e0ca5dfc13f6/linux/aarch64/list.json";
+    "https://github.com/nikitastupin/solc/raw/53cde9e4624868254a4ac8ca339661e25cb853ef/linux/aarch64/list.json";
 
 static MACOS_AARCH64_NATIVE: Lazy<Version> = Lazy::new(|| Version::new(0, 8, 5));
 
 static MACOS_AARCH64_URL_PREFIX: &str =
-    "https://github.com/ethers-rs/solc-builds/raw/5560a1f4b69f081d120b0df1735bf87cdda2e6b5/macosx/aarch64";
+    "https://github.com/alloy-rs/solc-builds/raw/55ef6c89b8a09c16feee4a424f8a53f822831a61/macosx/aarch64";
 
 static MACOS_AARCH64_RELEASES_URL: &str =
-    "https://github.com/ethers-rs/solc-builds/raw/5560a1f4b69f081d120b0df1735bf87cdda2e6b5/macosx/aarch64/list.json";
+    "https://github.com/alloy-rs/solc-builds/raw/55ef6c89b8a09c16feee4a424f8a53f822831a61/macosx/aarch64/list.json";
 
 /// Defines the struct that the JSON-formatted release list can be deserialized into.
 ///
@@ -129,7 +129,7 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError
         // The supported versions for both macos-amd64 and macos-aarch64 are the same.
         //
         // 1. For version >= 0.8.5 we fetch native releases from
-        // https://github.com/ethers-rs/solc-builds
+        // https://github.com/alloy-rs/solc-builds
         //
         // 2. For version <= 0.8.4 we fetch releases from https://binaries.soliditylang.org and
         // require Rosetta support.
@@ -166,7 +166,7 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
         // The supported versions for both macos-amd64 and macos-aarch64 are the same.
         //
         // 1. For version >= 0.8.5 we fetch native releases from
-        // https://github.com/ethers-rs/solc-builds
+        // https://github.com/alloy-rs/solc-builds
         //
         // 2. For version <= 0.8.4 we fetch releases from https://binaries.soliditylang.org and
         // require Rosetta support.
