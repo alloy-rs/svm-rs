@@ -1,6 +1,6 @@
 [package]
 name = "svm-rs-builds"
-version = "0.1.16"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.65"
 authors = [
@@ -14,7 +14,7 @@ homepage = "https://github.com/roynalnaruto/svm-rs"
 description = "Solidity compiler builds"
 
 [build-dependencies]
-svm = { package = "svm-rs", path = "../svm-rs", version = "0.2.24", default-features = false, features = [
+svm = { package = "svm-rs", path = "../svm-rs", version = "0.3.0", default-features = false, features = [
     "blocking",
     "rustls",
 ] }
