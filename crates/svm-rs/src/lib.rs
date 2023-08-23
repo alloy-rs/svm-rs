@@ -5,7 +5,7 @@ use sha2::Digest;
 use std::{
     ffi::OsString,
     fs,
-    io::{Cursor, Write},
+    io::{Cursor, ErrorKind, Write},
     path::PathBuf,
     process::Command,
 };
@@ -331,7 +331,19 @@ pub fn setup_data_dir() -> Result<PathBuf, SolcVmError> {
     // create $XDG_DATA_HOME or ~/.local/share/svm, or fallback to ~/.svm
     let svm_dir = SVM_DATA_DIR.to_path_buf();
     if !svm_dir.as_path().exists() {
-        fs::create_dir_all(svm_dir.clone())?;
+        // Create the directory, continuing if the directory came into existence after the check
+        // for this if statement. This may happen if two copies of SVM run simultaneously.
+        fs::create_dir_all(svm_dir.clone()).or_else(|err| match err.kind() {
+            ErrorKind::AlreadyExists => Ok(()),
+            _ => Err(err),
+        })?;
+    }
+    // Check that the SVM directory is indeed a directory, and not e.g. a file.
+    if !svm_dir.as_path().is_dir() {
+        return Err(SolcVmError::IoError(std::io::Error::new(
+            ErrorKind::AlreadyExists,
+            "svm directory is not a directory",
+        )));
     }
     // create $SVM/.global-version
     let mut global_version = SVM_DATA_DIR.to_path_buf();
