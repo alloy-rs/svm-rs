@@ -2,6 +2,7 @@ use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
 use itertools::Itertools;
 use semver::Version;
+use std::time::Duration;
 
 pub fn current_version(version: Option<Version>) {
     match version {
@@ -39,7 +40,7 @@ pub fn available_versions(versions: Vec<Version>) {
 
 pub fn installing_version(version: &Version) -> ProgressBar {
     let spinner = ProgressBar::new_spinner();
-    spinner.enable_steady_tick(120);
+    spinner.enable_steady_tick(Duration::from_millis(120));
     spinner.set_message(format!("Downloading Solc {version}"));
     spinner.set_style(
         ProgressStyle::default_spinner()
@@ -47,7 +48,8 @@ pub fn installing_version(version: &Version) -> ProgressBar {
                 "☀️ ", "☀️ ", "☀️ ", "🌤 ", "⛅️ ", "🌥 ", "☁️ ", "🌧 ", "🌨 ", "🌧 ", "🌨 ", "🌧 ", "🌨 ",
                 "⛈ ", "🌨 ", "🌧 ", "🌨 ", "☁️ ", "🌥 ", "⛅️ ", "🌤 ", "☀️ ", "☀️ ",
             ])
-            .template("{spinner:.green} {msg}"),
+            .template("{spinner:.green} {msg}")
+            .unwrap(),
     );
     spinner
 }

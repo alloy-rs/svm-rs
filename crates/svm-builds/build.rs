@@ -1,3 +1,7 @@
+#![allow(dead_code)]
+
+use std::fs::File;
+
 use semver::Version;
 use svm::Releases;
 
@@ -12,9 +16,19 @@ use svm::Releases;
 /// - "windows-amd64"
 pub const SVM_TARGET_PLATFORM: &str = "SVM_TARGET_PLATFORM";
 
+/// The path to the releases JSON file, that was pre-fetched manually. If this
+/// variable is defined, svm-builds won't attempt to deduce anything about the
+/// platfrom or perform network calls, and will instead treat the file as the
+/// source of truth.
+///
+/// Must follow the same format as the upstream `list.json`, e.g.
+/// [this one](https://raw.githubusercontent.com/nikitastupin/solc/af2fce8988e41753ab4f726e0273ea8244de5dba/linux/aarch64/list.json)
+pub const SVM_RELEASES_LIST_JSON: &str = "SVM_RELEASES_LIST_JSON";
+
 /// Returns the platform to generate the constants for
 ///
-/// if the `SVM_TARGET_PLATFORM` var is set, this will return the matching [svm::Platform], otherwise the native platform will be used [svm::platform()]
+/// if the `SVM_TARGET_PLATFORM` var is set, this will return the matching [svm::Platform],
+/// otherwise the native platform will be used [svm::platform()].
 fn get_platform() -> svm::Platform {
     if let Ok(s) = std::env::var(SVM_TARGET_PLATFORM) {
         s.parse().unwrap()
@@ -107,7 +121,24 @@ pub const TARGET_PLATFORM: &str = "{}";
 
 fn generate() {
     let platform = get_platform();
-    let releases = svm::blocking_all_releases(platform).expect("Failed to fetch releases");
+
+    let releases: Releases = if let Ok(file_path) = std::env::var(SVM_RELEASES_LIST_JSON) {
+        let file = File::open(file_path).unwrap_or_else(|_| {
+            panic!(
+                "{:?} defined, but cannot read the file referenced",
+                SVM_RELEASES_LIST_JSON
+            )
+        });
+
+        serde_json::from_reader(file).unwrap_or_else(|_| {
+            panic!(
+                "Failed to parse the JSON from {:?} file",
+                SVM_RELEASES_LIST_JSON
+            )
+        })
+    } else {
+        svm::blocking_all_releases(platform).expect("Failed to fetch releases")
+    };
 
     let mut writer = build_const::ConstWriter::for_build("builds")
         .unwrap()
