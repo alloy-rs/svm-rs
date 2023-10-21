@@ -332,7 +332,7 @@ pub fn setup_data_dir() -> Result<PathBuf, SolcVmError> {
     let svm_dir = SVM_DATA_DIR.to_path_buf();
     if !svm_dir.as_path().exists() {
         // Create the directory, continuing if the directory came into existence after the check
-        // for this if statement. This may happen if two copies of SVM run simultaneously.
+        // for this if statement. This may happen if two copies of SVM run simultaneously (e.g CI).
         fs::create_dir_all(svm_dir.clone()).or_else(|err| match err.kind() {
             ErrorKind::AlreadyExists => Ok(()),
             _ => Err(err),
