@@ -433,7 +433,7 @@ mod tests {
         assert_eq!(
             artifact_url(Platform::LinuxAarch64, &version, artifact).unwrap(),
             Url::parse(&format!(
-                "https://github.com/nikitastupin/solc/raw/53cde9e4624868254a4ac8ca339661e25cb853ef/linux/aarch64/{artifact}"
+                "https://github.com/nikitastupin/solc/raw/3d6c589a6c115d2cc12e9e18941c6f0562c805ee/linux/aarch64/{artifact}"
             ))
             .unwrap(),
         )
@@ -520,7 +520,7 @@ mod tests {
     // ensures we can download the latest native solc for apple silicon
     #[tokio::test(flavor = "multi_thread")]
     async fn can_download_latest_native_apple_silicon() {
-        let latest: Version = "0.8.21".parse().unwrap();
+        let latest: Version = "0.8.22".parse().unwrap();
 
         let artifacts = all_releases(Platform::MacOsAarch64).await.unwrap();
 
