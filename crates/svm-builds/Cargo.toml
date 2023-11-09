@@ -14,7 +14,7 @@ homepage = "https://github.com/roynalnaruto/svm-rs"
 description = "Solidity compiler builds"
 
 [build-dependencies]
-svm = { package = "svm-rs", path = "../svm-rs", version = "0.3.2", default-features = false, features = [
+svm = { package = "svm-rs", path = "../svm-rs", version = "0.3.3", default-features = false, features = [
     "blocking",
     "rustls",
 ] }
