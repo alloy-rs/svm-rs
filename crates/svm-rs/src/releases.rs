@@ -121,83 +121,89 @@ mod hex_string {
 /// Blocking version fo [`all_realeases`]
 #[cfg(feature = "blocking")]
 pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
-    if platform == Platform::LinuxAarch64 {
-        return Ok(reqwest::blocking::get(LINUX_AARCH64_RELEASES_URL)?.json::<Releases>()?);
+    match platform {
+        Platform::LinuxAarch64 => {
+            return Ok(reqwest::blocking::get(LINUX_AARCH64_RELEASES_URL)?.json::<Releases>()?)
+        }
+        Platform::MacOsAarch64 => {
+            // The supported versions for both macos-amd64 and macos-aarch64 are the same.
+            //
+            // 1. For version >= 0.8.5 we fetch native releases from
+            // https://github.com/alloy-rs/solc-builds
+            //
+            // 2. For version <= 0.8.4 we fetch releases from https://binaries.soliditylang.org and
+            // require Rosetta support.
+            let mut native =
+                reqwest::blocking::get(MACOS_AARCH64_RELEASES_URL)?.json::<Releases>()?;
+            let mut releases = reqwest::blocking::get(format!(
+                "{}/{}/list.json",
+                SOLC_RELEASES_URL,
+                Platform::MacOsAmd64,
+            ))?
+            .json::<Releases>()?;
+            releases
+                .builds
+                .retain(|b| b.version.lt(&MACOS_AARCH64_NATIVE));
+            releases.builds.extend_from_slice(&native.builds);
+            releases.releases.append(&mut native.releases);
+            return Ok(releases);
+        }
+        _ => {
+            let releases =
+                reqwest::blocking::get(format!("{SOLC_RELEASES_URL}/{platform}/list.json"))?
+                    .json::<Releases>()?;
+            Ok(unified_releases(releases, platform))
+        }
     }
-
-    if platform == Platform::MacOsAarch64 {
-        // The supported versions for both macos-amd64 and macos-aarch64 are the same.
-        //
-        // 1. For version >= 0.8.5 we fetch native releases from
-        // https://github.com/alloy-rs/solc-builds
-        //
-        // 2. For version <= 0.8.4 we fetch releases from https://binaries.soliditylang.org and
-        // require Rosetta support.
-        let mut native = reqwest::blocking::get(MACOS_AARCH64_RELEASES_URL)?.json::<Releases>()?;
-        let mut releases = reqwest::blocking::get(format!(
-            "{}/{}/list.json",
-            SOLC_RELEASES_URL,
-            Platform::MacOsAmd64,
-        ))?
-        .json::<Releases>()?;
-        releases
-            .builds
-            .retain(|b| b.version.lt(&MACOS_AARCH64_NATIVE));
-        releases.builds.extend_from_slice(&native.builds);
-        releases.releases.append(&mut native.releases);
-        return Ok(releases);
-    }
-
-    let releases = reqwest::blocking::get(format!("{SOLC_RELEASES_URL}/{platform}/list.json"))?
-        .json::<Releases>()?;
-    Ok(unified_releases(releases, platform))
 }
 
 /// Fetch all releases available for the provided platform.
 pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
-    if platform == Platform::LinuxAarch64 {
-        return Ok(get(LINUX_AARCH64_RELEASES_URL)
-            .await?
-            .json::<Releases>()
-            .await?);
-    }
-
-    if platform == Platform::MacOsAarch64 {
-        // The supported versions for both macos-amd64 and macos-aarch64 are the same.
-        //
-        // 1. For version >= 0.8.5 we fetch native releases from
-        // https://github.com/alloy-rs/solc-builds
-        //
-        // 2. For version <= 0.8.4 we fetch releases from https://binaries.soliditylang.org and
-        // require Rosetta support.
-        let mut native = get(MACOS_AARCH64_RELEASES_URL)
+    match platform {
+        Platform::LinuxAarch64 => {
+            return Ok(get(LINUX_AARCH64_RELEASES_URL)
+                .await?
+                .json::<Releases>()
+                .await?)
+        }
+        Platform::MacOsAarch64 => {
+            // The supported versions for both macos-amd64 and macos-aarch64 are the same.
+            //
+            // 1. For version >= 0.8.5 we fetch native releases from
+            // https://github.com/alloy-rs/solc-builds
+            //
+            // 2. For version <= 0.8.4 we fetch releases from https://binaries.soliditylang.org and
+            // require Rosetta support.
+            let mut native = get(MACOS_AARCH64_RELEASES_URL)
+                .await?
+                .json::<Releases>()
+                .await?;
+            let mut releases = get(format!(
+                "{}/{}/list.json",
+                SOLC_RELEASES_URL,
+                Platform::MacOsAmd64,
+            ))
             .await?
             .json::<Releases>()
             .await?;
-        let mut releases = get(format!(
-            "{}/{}/list.json",
-            SOLC_RELEASES_URL,
-            Platform::MacOsAmd64,
-        ))
-        .await?
-        .json::<Releases>()
-        .await?;
-        releases
-            .builds
-            .retain(|b| b.version.lt(&MACOS_AARCH64_NATIVE));
-        releases.releases.retain(|v, _| v.lt(&MACOS_AARCH64_NATIVE));
+            releases
+                .builds
+                .retain(|b| b.version.lt(&MACOS_AARCH64_NATIVE));
+            releases.releases.retain(|v, _| v.lt(&MACOS_AARCH64_NATIVE));
 
-        releases.builds.extend_from_slice(&native.builds);
-        releases.releases.append(&mut native.releases);
-        return Ok(releases);
+            releases.builds.extend_from_slice(&native.builds);
+            releases.releases.append(&mut native.releases);
+            return Ok(releases);
+        }
+        _ => {
+            let releases = get(format!("{SOLC_RELEASES_URL}/{platform}/list.json"))
+                .await?
+                .json::<Releases>()
+                .await?;
+
+            Ok(unified_releases(releases, platform))
+        }
     }
-
-    let releases = get(format!("{SOLC_RELEASES_URL}/{platform}/list.json"))
-        .await?
-        .json::<Releases>()
-        .await?;
-
-    Ok(unified_releases(releases, platform))
 }
 
 /// unifies the releases with old releases if on linux
