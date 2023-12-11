@@ -1,6 +1,7 @@
 use std::fmt::Formatter;
 use std::str::FromStr;
 use std::{env, fmt};
+use std::path::Path;
 
 /// Types of supported platforms.
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
@@ -42,8 +43,22 @@ impl FromStr for Platform {
     }
 }
 
+// Importing the necessary modules from the standard library
+
+
 pub fn is_nixos() -> bool {
-    std::path::Path::new("/etc/NIXOS").exists()
+    // Define the name of the environment variable we want to check
+    let env_var = "FORCE_NIXOS";
+
+    // Check if the environment variable is set and equals "true"
+    // We use env::var to get the value of the environment variable.
+    // We then compare it to "true" to see if the variable indicates to force the function to return true.
+    if env::var(env_var).map_or(false, |v| v == "true") {
+        return true;
+    }
+
+    // Original check: Verify if the path "/etc/NIXOS" exists
+    Path::new("/etc/NIXOS").exists()
 }
 
 /// Read the current machine's platform.
