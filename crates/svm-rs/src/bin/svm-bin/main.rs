@@ -8,10 +8,10 @@ mod usev;
 mod utils;
 
 use clap::Parser;
-use usev::UseArgs;
 use install::InstallArgs;
 use list::ListArgs;
 use remove::RemoveArgs;
+use usev::UseArgs;
 
 #[derive(Debug, Parser)]
 #[clap(name = "solc-vm", about = "Solc version manager")]
