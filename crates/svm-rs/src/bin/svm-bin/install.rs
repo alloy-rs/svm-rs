@@ -11,11 +11,12 @@ pub struct InstallArgs {
 
 impl InstallArgs {
     pub async fn run(self) -> anyhow::Result<()> {
+        let all_versions = svm_lib::all_versions().await?;
+
         for version in self.versions {
-            let version = Version::parse(&version)?;
-            let all_versions = svm_lib::all_versions().await?;
             let installed_versions = svm_lib::installed_versions().unwrap_or_default();
             let current_version = svm_lib::current_version()?;
+            let version = Version::parse(&version)?;
 
             if installed_versions.contains(&version) {
                 println!("Solc {version} is already installed");
@@ -40,6 +41,7 @@ impl InstallArgs {
                 print::unsupported_version(&version);
             }
         }
+
         Ok(())
     }
 }
