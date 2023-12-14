@@ -123,7 +123,7 @@ mod hex_string {
 pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
     match platform {
         Platform::LinuxAarch64 => {
-            return Ok(reqwest::blocking::get(LINUX_AARCH64_RELEASES_URL)?.json::<Releases>()?)
+            Ok(reqwest::blocking::get(LINUX_AARCH64_RELEASES_URL)?.json::<Releases>()?)
         }
         Platform::MacOsAarch64 => {
             // The supported versions for both macos-amd64 and macos-aarch64 are the same.
@@ -146,7 +146,7 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError
                 .retain(|b| b.version.lt(&MACOS_AARCH64_NATIVE));
             releases.builds.extend_from_slice(&native.builds);
             releases.releases.append(&mut native.releases);
-            return Ok(releases);
+            Ok(releases)
         }
         _ => {
             let releases =
@@ -160,12 +160,10 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError
 /// Fetch all releases available for the provided platform.
 pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
     match platform {
-        Platform::LinuxAarch64 => {
-            return Ok(get(LINUX_AARCH64_RELEASES_URL)
-                .await?
-                .json::<Releases>()
-                .await?)
-        }
+        Platform::LinuxAarch64 => Ok(get(LINUX_AARCH64_RELEASES_URL)
+            .await?
+            .json::<Releases>()
+            .await?),
         Platform::MacOsAarch64 => {
             // The supported versions for both macos-amd64 and macos-aarch64 are the same.
             //
@@ -193,7 +191,7 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
 
             releases.builds.extend_from_slice(&native.builds);
             releases.releases.append(&mut native.releases);
-            return Ok(releases);
+            Ok(releases)
         }
         _ => {
             let releases = get(format!("{SOLC_RELEASES_URL}/{platform}/list.json"))
