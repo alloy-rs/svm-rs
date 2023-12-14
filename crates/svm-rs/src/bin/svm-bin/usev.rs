@@ -1,4 +1,4 @@
-use crate::{install::InstallArgs, print};
+use crate::print;
 use clap::Parser;
 use dialoguer::Input;
 use semver::Version;
