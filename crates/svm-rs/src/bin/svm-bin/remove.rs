@@ -12,7 +12,7 @@ pub struct RemoveArgs {
 
 impl RemoveArgs {
     pub async fn run(self) -> anyhow::Result<()> {
-        if self.version == "ALL" || self.version == "all" {
+        if self.version.to_ascii_lowercase() == "all" {
             for v in svm_lib::installed_versions().unwrap_or_default() {
                 svm_lib::remove_version(&v)?;
             }
