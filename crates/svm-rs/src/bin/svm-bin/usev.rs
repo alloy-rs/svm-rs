@@ -6,7 +6,6 @@ use semver::Version;
 #[derive(Debug, Clone, Parser)]
 pub struct UseArgs {
     #[clap(long, short)]
-    // TODO: Serde helper for parsing Version(?)
     pub version: String,
 }
 
