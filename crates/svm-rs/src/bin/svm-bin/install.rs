@@ -3,9 +3,9 @@ use clap::Parser;
 use dialoguer::Input;
 use semver::Version;
 
-#[derive(Debug, Clone, Parser)]
+#[derive(Debug, Clone, PartialEq, Eq, Parser)]
 pub struct InstallArgs {
-    #[clap(long, short)]
+    /// Solc versions to install
     pub versions: Vec<String>,
 }
 
@@ -43,5 +43,21 @@ impl InstallArgs {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_install() {
+        let args: InstallArgs = InstallArgs::parse_from(["svm", "0.8.11", "0.8.10"]);
+        assert_eq!(
+            args,
+            InstallArgs {
+                versions: vec!["0.8.11".into(), "0.8.10".into()]
+            }
+        );
     }
 }

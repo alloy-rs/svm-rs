@@ -33,10 +33,10 @@ async fn main() -> anyhow::Result<()> {
     svm_lib::setup_data_dir()?;
 
     match opt {
-        SolcVm::List(cmd) => utils::block_on(cmd.run())?,
-        SolcVm::Install(cmd) => utils::block_on(cmd.run())?,
-        SolcVm::Use(cmd) => utils::block_on(cmd.run())?,
-        SolcVm::Remove(cmd) => utils::block_on(cmd.run())?,
+        SolcVm::List(cmd) => cmd.run().await?,
+        SolcVm::Install(cmd) => cmd.run().await?,
+        SolcVm::Use(cmd) => cmd.run().await?,
+        SolcVm::Remove(cmd) => cmd.run().await?,
     }
 
     Ok(())

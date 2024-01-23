@@ -5,8 +5,7 @@ use semver::Version;
 
 #[derive(Debug, Clone, Parser)]
 pub struct RemoveArgs {
-    #[clap(long, short)]
-    // TODO: Serde helper for parsing Version(?)
+    /// Solc version to remove
     pub version: String,
 }
 
