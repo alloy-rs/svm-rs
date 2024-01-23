@@ -15,7 +15,7 @@ cargo install svm-rs
 Or from the repository:
 
 ```sh
-cargo install --locked --git https://github.com/roynalnaruto/svm-rs
+cargo install --locked --git https://github.com/alloy-rs/svm-rs/
 ```
 
 ### Usage
