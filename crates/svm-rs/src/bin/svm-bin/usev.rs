@@ -5,7 +5,7 @@ use semver::Version;
 
 #[derive(Debug, Clone, Parser)]
 pub struct UseArgs {
-    #[clap(long, short)]
+    #[clap(help = "Solc version to use")]
     pub version: String,
 }
 
