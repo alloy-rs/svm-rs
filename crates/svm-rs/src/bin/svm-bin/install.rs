@@ -5,7 +5,7 @@ use semver::Version;
 
 #[derive(Debug, Clone, PartialEq, Eq, Parser)]
 pub struct InstallArgs {
-    #[clap(help = "Solc versions to install")]
+    /// Solc versions to install
     pub versions: Vec<String>,
 }
 

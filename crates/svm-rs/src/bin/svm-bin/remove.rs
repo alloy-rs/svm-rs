@@ -5,7 +5,7 @@ use semver::Version;
 
 #[derive(Debug, Clone, Parser)]
 pub struct RemoveArgs {
-    #[clap(help = "Solc version to remove")]
+    /// Solc version to remove
     pub version: String,
 }
 
