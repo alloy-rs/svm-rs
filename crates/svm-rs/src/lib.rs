@@ -532,7 +532,7 @@ mod tests {
     // ensures we can download the latest native solc for apple silicon
     #[tokio::test(flavor = "multi_thread")]
     async fn can_download_latest_native_apple_silicon() {
-        let latest: Version = "0.8.23".parse().unwrap();
+        let latest: Version = "0.8.24".parse().unwrap();
 
         let artifacts = all_releases(Platform::MacOsAarch64).await.unwrap();
 
