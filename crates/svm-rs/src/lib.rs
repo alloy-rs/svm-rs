@@ -415,16 +415,16 @@ fn lock_file_path(version: &Version) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::{
         platform::Platform,
         releases::{all_releases, artifact_url},
     };
     use rand::seq::SliceRandom;
     use reqwest::Url;
-
     use std::process::{Command, Stdio};
 
-    use super::*;
+    const LATEST: Version = Version::new(0, 8, 24);
 
     #[tokio::test]
     async fn test_data_dir_resolution() {
@@ -445,7 +445,7 @@ mod tests {
         assert_eq!(
             artifact_url(Platform::LinuxAarch64, &version, artifact).unwrap(),
             Url::parse(&format!(
-                "https://github.com/nikitastupin/solc/raw/923ab4b852fadc00ffe87bb76fff21d0613bd280/linux/aarch64/{artifact}"
+                "https://github.com/nikitastupin/solc/raw/7687d6ce15553292adbb3e6c565eafea6e0caf85/linux/aarch64/{artifact}"
             ))
             .unwrap(),
         )
@@ -532,24 +532,44 @@ mod tests {
     // ensures we can download the latest native solc for apple silicon
     #[tokio::test(flavor = "multi_thread")]
     async fn can_download_latest_native_apple_silicon() {
-        let latest: Version = "0.8.23".parse().unwrap();
-
         let artifacts = all_releases(Platform::MacOsAarch64).await.unwrap();
 
-        let artifact = artifacts.releases.get(&latest).unwrap();
+        let artifact = artifacts.releases.get(&LATEST).unwrap();
         let download_url = artifact_url(
             Platform::MacOsAarch64,
-            &latest,
+            &LATEST,
             artifact.to_string().as_str(),
         )
         .unwrap();
 
-        let checksum = artifacts.get_checksum(&latest).unwrap();
+        let checksum = artifacts.get_checksum(&LATEST).unwrap();
 
         let resp = reqwest::get(download_url).await.unwrap();
         assert!(resp.status().is_success());
         let binbytes = resp.bytes().await.unwrap();
-        ensure_checksum(&binbytes, &latest, checksum).unwrap();
+        ensure_checksum(&binbytes, &LATEST, checksum).unwrap();
+    }
+
+    // ensures we can download the latest native solc for linux aarch64
+    #[tokio::test(flavor = "multi_thread")]
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    async fn can_download_latest_linux_aarch64() {
+        let artifacts = all_releases(Platform::LinuxAarch64).await.unwrap();
+
+        let artifact = artifacts.releases.get(&LATEST).unwrap();
+        let download_url = artifact_url(
+            Platform::LinuxAarch64,
+            &LATEST,
+            artifact.to_string().as_str(),
+        )
+        .unwrap();
+
+        let checksum = artifacts.get_checksum(&LATEST).unwrap();
+
+        let resp = reqwest::get(download_url).await.unwrap();
+        assert!(resp.status().is_success());
+        let binbytes = resp.bytes().await.unwrap();
+        ensure_checksum(&binbytes, &LATEST, checksum).unwrap();
     }
 
     #[tokio::test]
