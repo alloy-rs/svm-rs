@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 use semver::{Version, VersionReq};
 use sha2::Digest;
-
+use std::time::Duration;
 use std::{
     ffi::OsString,
     fs,
@@ -10,8 +10,7 @@ use std::{
     process::Command,
 };
 
-use std::time::Duration;
-/// Use permissions extensions on unix
+// Use permissions extensions on unix.
 #[cfg(target_family = "unix")]
 use std::{fs::Permissions, os::unix::fs::PermissionsExt};
 
