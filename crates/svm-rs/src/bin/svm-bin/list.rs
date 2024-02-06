@@ -4,14 +4,15 @@ use crate::print;
 use clap::Parser;
 use semver::Version;
 
+/// List all Solc versions.
 #[derive(Debug, Parser)]
-pub struct ListArgs;
+pub struct ListCmd;
 
-impl ListArgs {
+impl ListCmd {
     pub async fn run(self) -> anyhow::Result<()> {
-        let all_versions = svm_lib::all_versions().await?;
-        let installed_versions = svm_lib::installed_versions().unwrap_or_default();
-        let current_version = svm_lib::get_global_version()?;
+        let all_versions = svm::all_versions().await?;
+        let installed_versions = svm::installed_versions().unwrap_or_default();
+        let current_version = svm::get_global_version()?;
 
         let a: HashSet<Version> = all_versions.iter().cloned().collect();
         let b: HashSet<Version> = installed_versions.iter().cloned().collect();

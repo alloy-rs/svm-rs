@@ -8,44 +8,52 @@
 #![deny(unused_must_use, rust_2018_idioms)]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
+use clap::Parser;
+
 mod install;
 mod list;
-pub mod print;
+mod print;
 mod remove;
-mod usev;
+mod r#use;
 mod utils;
 
-use clap::Parser;
-use install::InstallArgs;
-use list::ListArgs;
-use remove::RemoveArgs;
-use usev::UseArgs;
-
+/// Solc version manager.
 #[derive(Debug, Parser)]
-#[clap(name = "solc-vm", about = "Solc version manager")]
-enum SolcVm {
-    #[clap(about = "List all versions of Solc")]
-    List(ListArgs),
-    #[clap(about = "Install Solc versions")]
-    Install(InstallArgs),
-    #[clap(about = "Use a Solc version")]
-    Use(UseArgs), // { version: String },
-    #[clap(about = "Remove a Solc version")]
-    Remove(RemoveArgs), // { version: String },
+#[clap(
+    name = "sulk",
+    version = svm::VERSION_MESSAGE,
+    next_display_order = None,
+)]
+enum Svm {
+    List(list::ListCmd),
+    Install(install::InstallCmd),
+    Use(r#use::UseCmd),
+    Remove(remove::RemoveCmd),
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let opt = SolcVm::parse();
+    let opt = Svm::parse();
 
-    svm_lib::setup_data_dir()?;
+    svm::setup_data_dir()?;
 
     match opt {
-        SolcVm::List(cmd) => cmd.run().await?,
-        SolcVm::Install(cmd) => cmd.run().await?,
-        SolcVm::Use(cmd) => cmd.run().await?,
-        SolcVm::Remove(cmd) => cmd.run().await?,
+        Svm::List(cmd) => cmd.run().await?,
+        Svm::Install(cmd) => cmd.run().await?,
+        Svm::Use(cmd) => cmd.run().await?,
+        Svm::Remove(cmd) => cmd.run().await?,
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn verify_cli() {
+        Svm::command().debug_assert();
+    }
 }

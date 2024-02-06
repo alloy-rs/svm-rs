@@ -11,9 +11,8 @@
 use std::process::{Command, Stdio};
 
 fn main() -> anyhow::Result<()> {
-    let version =
-        svm_lib::get_global_version()?.ok_or(svm_lib::SolcVmError::GlobalVersionNotSet)?;
-    let program = svm_lib::version_binary(&version.to_string());
+    let version = svm::get_global_version()?.ok_or(svm::SvmError::GlobalVersionNotSet)?;
+    let program = svm::version_binary(&version.to_string());
 
     let status = Command::new(program)
         .args(std::env::args_os().skip(1))

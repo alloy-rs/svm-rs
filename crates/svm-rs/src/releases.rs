@@ -1,4 +1,4 @@
-use crate::{error::SolcVmError, platform::Platform};
+use crate::{error::SvmError, platform::Platform};
 use once_cell::sync::Lazy;
 use reqwest::get;
 use semver::Version;
@@ -120,7 +120,7 @@ mod hex_string {
 
 /// Blocking version of [`all_releases`].
 #[cfg(feature = "blocking")]
-pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
+pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SvmError> {
     match platform {
         Platform::LinuxAarch64 => {
             Ok(reqwest::blocking::get(LINUX_AARCH64_RELEASES_URL)?.json::<Releases>()?)
@@ -158,7 +158,7 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError
 }
 
 /// Fetch all releases available for the provided platform.
-pub async fn all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
+pub async fn all_releases(platform: Platform) -> Result<Releases, SvmError> {
     match platform {
         Platform::LinuxAarch64 => Ok(get(LINUX_AARCH64_RELEASES_URL)
             .await?
@@ -221,7 +221,7 @@ pub fn artifact_url(
     platform: Platform,
     version: &Version,
     artifact: &str,
-) -> Result<Url, SolcVmError> {
+) -> Result<Url, SvmError> {
     if platform == Platform::LinuxAmd64
         && version.le(&OLD_VERSION_MAX)
         && version.ge(&OLD_VERSION_MIN)
@@ -237,7 +237,7 @@ pub fn artifact_url(
                 "{LINUX_AARCH64_URL_PREFIX}/{artifact}"
             ))?);
         } else {
-            return Err(SolcVmError::UnsupportedVersion(
+            return Err(SvmError::UnsupportedVersion(
                 version.to_string(),
                 platform.to_string(),
             ));
@@ -245,7 +245,7 @@ pub fn artifact_url(
     }
 
     if platform == Platform::MacOsAmd64 && version.lt(&OLD_VERSION_MIN) {
-        return Err(SolcVmError::UnsupportedVersion(
+        return Err(SvmError::UnsupportedVersion(
             version.to_string(),
             platform.to_string(),
         ));
