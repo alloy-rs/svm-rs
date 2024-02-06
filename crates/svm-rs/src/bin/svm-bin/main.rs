@@ -20,7 +20,7 @@ mod utils;
 /// Solc version manager.
 #[derive(Debug, Parser)]
 #[clap(
-    name = "sulk",
+    name = "svm",
     version = svm::VERSION_MESSAGE,
     next_display_order = None,
 )]
