@@ -401,7 +401,7 @@ impl Installer<'_> {
         let mut archive = zip::ZipArchive::new(&mut content)?;
         archive.extract(version_path)?;
 
-        std::fs::rename(version_path.join("solc.exe"), solc_path)?;
+        std::fs::rename(version_path.join("solc.exe"), &solc_path)?;
 
         Ok(solc_path)
     }
@@ -438,7 +438,7 @@ mod tests {
     };
     use rand::seq::SliceRandom;
     use reqwest::Url;
-    use std::process::{Command, Stdio};
+    use std::process::Command;
 
     const LATEST: Version = Version::new(0, 8, 24);
 
@@ -506,13 +506,7 @@ mod tests {
         let version = "0.8.10".parse().unwrap();
         blocking_install(&version).unwrap();
         let solc_path = version_binary(version.to_string().as_str());
-        let output = Command::new(solc_path)
-            .arg("--version")
-            .stdin(Stdio::piped())
-            .stderr(Stdio::piped())
-            .stdout(Stdio::piped())
-            .output()
-            .unwrap();
+        let output = Command::new(solc_path).arg("--version").output().unwrap();
 
         assert!(String::from_utf8_lossy(&output.stdout)
             .as_ref()
@@ -587,13 +581,7 @@ mod tests {
         let version = "0.7.1".parse().unwrap();
         install(&version).await.unwrap();
         let solc_path = version_binary(version.to_string().as_str());
-        let output = Command::new(&solc_path)
-            .arg("--version")
-            .stdin(Stdio::piped())
-            .stderr(Stdio::piped())
-            .stdout(Stdio::piped())
-            .output()
-            .unwrap();
+        let output = Command::new(&solc_path).arg("--version").output().unwrap();
 
         assert!(String::from_utf8_lossy(&output.stdout)
             .as_ref()
