@@ -1,3 +1,17 @@
 [workspace]
 members = ["crates/svm-builds", "crates/svm-rs"]
 resolver = "2"
+
+[workspace.package]
+version = "0.3.5"
+edition = "2021"
+rust-version = "1.70"
+authors = [
+    "Rohit Narurkar <rohit.narurkar@protonmail.com>",
+    "Matthias Seitz <matthias.seitz@outlook.de>",
+    "DaniPopes <57450786+DaniPopes@users.noreply.github.com>",
+]
+license = "MIT OR Apache-2.0"
+readme = "./README.md"
+repository = "https://github.com/alloy-rs/svm-rs"
+homepage = "https://github.com/alloy-rs/svm-rs"
