@@ -1,17 +1,29 @@
-use once_cell::sync::Lazy;
-use semver::{Version, VersionReq};
-use sha2::Digest;
+#![doc = include_str!("../README.md")]
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/alloy-rs/core/main/assets/alloy.jpg",
+    html_favicon_url = "https://raw.githubusercontent.com/alloy-rs/core/main/assets/favicon.ico"
+)]
+#![warn(rustdoc::all)]
+#![cfg_attr(
+    not(any(test, feature = "cli", feature = "solc")),
+    warn(unused_crate_dependencies)
+)]
+#![deny(unused_must_use, rust_2018_idioms)]
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
+use semver::Version;
+use sha2::Digest;
 use std::{
     ffi::OsString,
     fs,
-    io::{Cursor, ErrorKind, Write},
-    path::PathBuf,
+    io::{ErrorKind, Write},
+    path::{Path, PathBuf},
     process::Command,
+    sync::OnceLock,
+    time::Duration,
 };
 
-use std::time::Duration;
-/// Use permissions extensions on unix
+// Use permission extensions on Unix.
 #[cfg(target_family = "unix")]
 use std::{fs::Permissions, os::unix::fs::PermissionsExt};
 
@@ -27,20 +39,29 @@ pub use releases::{all_releases, Releases};
 #[cfg(feature = "blocking")]
 pub use releases::blocking_all_releases;
 
-/// Declare path to Solc Version Manager's home directory
-/// On unix-based machines, if "~/.svm" already exists, then keep using it.
-/// Otherwise, use $XDG_DATA_HOME or ~/.local/share/svm
-pub static SVM_DATA_DIR: Lazy<PathBuf> = Lazy::new(|| {
-    #[cfg(test)]
-    {
-        let dir = tempfile::tempdir().expect("could not create temp directory");
-        dir.path().join(".svm")
-    }
-    #[cfg(not(test))]
-    {
-        resolve_data_dir()
-    }
-});
+/// The timeout to use for requests to the source
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// Version beyond which solc binaries are not fully static, hence need to be patched for NixOS.
+const NIXOS_MIN_PATCH_VERSION: Version = Version::new(0, 7, 6);
+
+/// Returns the path to the default data directory.
+///
+/// Returns `~/.svm` if it exists, otherwise uses `$XDG_DATA_HOME/svm`.
+pub fn data_dir() -> &'static Path {
+    static ONCE: OnceLock<PathBuf> = OnceLock::new();
+    ONCE.get_or_init(|| {
+        #[cfg(test)]
+        {
+            let dir = tempfile::tempdir().expect("could not create temp directory");
+            dir.path().join(".svm")
+        }
+        #[cfg(not(test))]
+        {
+            resolve_data_dir()
+        }
+    })
+}
 
 fn resolve_data_dir() -> PathBuf {
     let home_dir = dirs::home_dir()
@@ -48,144 +69,83 @@ fn resolve_data_dir() -> PathBuf {
         .join(".svm");
 
     let data_dir = dirs::data_dir().expect("could not detect user data directory");
-    if !home_dir.as_path().exists() && data_dir.as_path().exists() {
+    if !home_dir.exists() && data_dir.exists() {
         data_dir.join("svm")
     } else {
         home_dir
     }
 }
 
-/// The timeout to use for requests to the source
-const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
-
-/// Version beyond which solc binaries are not fully static, hence need to be patched for NixOS.
-static NIXOS_PATCH_REQ: Lazy<VersionReq> = Lazy::new(|| VersionReq::parse(">=0.7.6").unwrap());
-
-// Installer type that copies binary data to the appropriate solc binary file:
-// 1. create target file to copy binary data
-// 2. copy data
-struct Installer {
-    // version of solc
-    version: Version,
-    // binary data of the solc executable
-    binbytes: Vec<u8>,
+/// Returns the path to the global version file.
+pub fn global_version_path() -> &'static Path {
+    static ONCE: OnceLock<PathBuf> = OnceLock::new();
+    ONCE.get_or_init(|| data_dir().join(".global-version"))
 }
 
-impl Installer {
-    /// Installs the solc version at the version specific destination and returns the path to the installed solc file.
-    fn install(&self) -> Result<PathBuf, SolcVmError> {
-        let version_path = version_path(self.version.to_string().as_str());
-        let solc_path = version_path.join(format!("solc-{}", self.version));
-        // create solc file.
-        let mut f = fs::File::create(&solc_path)?;
-
-        #[cfg(target_family = "unix")]
-        f.set_permissions(Permissions::from_mode(0o777))?;
-
-        // copy contents over
-        let mut content = Cursor::new(&self.binbytes);
-        std::io::copy(&mut content, &mut f)?;
-
-        if platform::is_nixos() && NIXOS_PATCH_REQ.matches(&self.version) {
-            patch_for_nixos(solc_path)
-        } else {
-            Ok(solc_path)
-        }
-    }
-
-    /// Extracts the solc archive at the version specified destination and returns the path to the
-    /// installed solc binary.
-    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
-    fn install_zip(&self) -> Result<PathBuf, SolcVmError> {
-        let version_path = version_path(self.version.to_string().as_str());
-        let solc_path = version_path.join(&format!("solc-{}", self.version));
-
-        // extract archive
-        let mut content = Cursor::new(&self.binbytes);
-        let mut archive = zip::ZipArchive::new(&mut content)?;
-        archive.extract(version_path.as_path())?;
-
-        // rename solc binary
-        std::fs::rename(version_path.join("solc.exe"), solc_path.as_path())?;
-
-        Ok(solc_path)
-    }
-}
-
-/// Patch the given binary to use the dynamic linker provided by nixos
-pub fn patch_for_nixos(bin: PathBuf) -> Result<PathBuf, SolcVmError> {
-    let output = Command::new("nix-shell")
-        .arg("-p")
-        .arg("patchelf")
-        .arg("--run")
-        .arg(format!(
-            "patchelf --set-interpreter \"$(cat $NIX_CC/nix-support/dynamic-linker)\" {}",
-            bin.display()
-        ))
-        .output()
-        .expect("Failed to execute command");
-
-    match output.status.success() {
-        true => Ok(bin),
-        false => Err(SolcVmError::CouldNotPatchForNixOs(
-            String::from_utf8(output.stdout).expect("Found invalid UTF-8 when parsing stdout"),
-            String::from_utf8(output.stderr).expect("Found invalid UTF-8 when parsing stderr"),
-        )),
-    }
-}
-
-/// Derive path to a specific Solc version's binary.
+/// Returns the path to a specific Solc version's directory.
+///
+/// Note that this is not the path to the actual Solc binary file;
+/// use [`version_binary`] for that instead.
+///
+/// This is currently `data_dir() / {version}`.
 pub fn version_path(version: &str) -> PathBuf {
-    let mut version_path = SVM_DATA_DIR.to_path_buf();
-    version_path.push(version);
-    version_path
+    data_dir().join(version)
 }
 
-/// Derive path to SVM's global version file.
-pub fn global_version_path() -> PathBuf {
-    let mut global_version_path = SVM_DATA_DIR.to_path_buf();
-    global_version_path.push(".global-version");
-    global_version_path
+/// Derive path to a specific Solc version's binary file.
+///
+/// This is currently `data_dir() / {version} / solc-{version}`.
+pub fn version_binary(version: &str) -> PathBuf {
+    let data_dir = data_dir();
+    let sep = std::path::MAIN_SEPARATOR_STR;
+    let cap =
+        data_dir.as_os_str().len() + sep.len() + version.len() + sep.len() + 5 + version.len();
+    let mut binary = OsString::with_capacity(cap);
+    binary.push(data_dir);
+    debug_assert!(!data_dir.ends_with(sep));
+    binary.push(sep);
+
+    binary.push(version);
+    binary.push(sep);
+
+    binary.push("solc-");
+    binary.push(version);
+    PathBuf::from(binary)
 }
 
 /// Reads the currently set global version for Solc. Returns None if none has yet been set.
-pub fn current_version() -> Result<Option<Version>, SolcVmError> {
-    let v = fs::read_to_string(global_version_path().as_path())?;
-    Ok(Version::parse(v.trim_end_matches('\n').to_string().as_str()).ok())
+pub fn get_global_version() -> Result<Option<Version>, SolcVmError> {
+    let v = fs::read_to_string(global_version_path())?;
+    Ok(Version::parse(v.trim_end_matches('\n')).ok())
 }
 
 /// Sets the provided version as the global version for Solc.
-pub fn use_version(version: &Version) -> Result<(), SolcVmError> {
-    let mut v = fs::File::create(global_version_path().as_path())?;
-    v.write_all(version.to_string().as_bytes())?;
-    Ok(())
+pub fn set_global_version(version: &Version) -> Result<(), SolcVmError> {
+    fs::write(global_version_path(), version.to_string()).map_err(Into::into)
 }
 
 /// Unset the global version. This should be done if all versions are removed.
 pub fn unset_global_version() -> Result<(), SolcVmError> {
-    let mut v = fs::File::create(global_version_path().as_path())?;
-    v.write_all("".as_bytes())?;
-    Ok(())
+    fs::write(global_version_path(), "").map_err(Into::into)
 }
 
-/// Reads the list of Solc versions that have been installed in the machine. The version list is
-/// sorted in ascending order.
+/// Reads the list of Solc versions that have been installed in the machine.
+/// The version list is sorted in ascending order.
 pub fn installed_versions() -> Result<Vec<Version>, SolcVmError> {
-    let home_dir = SVM_DATA_DIR.to_path_buf();
     let mut versions = vec![];
-    for v in fs::read_dir(home_dir)? {
+    for v in fs::read_dir(data_dir())? {
         let v = v?;
-        if v.file_name() != OsString::from(".global-version".to_string()) {
-            versions.push(Version::parse(
-                v.path()
-                    .file_name()
-                    .ok_or(SolcVmError::UnknownVersion)?
-                    .to_str()
-                    .ok_or(SolcVmError::UnknownVersion)?
-                    .to_string()
-                    .as_str(),
-            )?);
+        let path = v.path();
+        let Some(file_name) = path.file_name() else {
+            continue;
+        };
+        let Some(file_name) = file_name.to_str() else {
+            continue;
+        };
+        if file_name == ".global-version" {
+            continue;
         }
+        versions.push(Version::parse(file_name)?);
     }
     versions.sort();
     Ok(versions)
@@ -217,7 +177,7 @@ pub fn blocking_install(version: &Version) -> Result<PathBuf, SolcVmError> {
     let download_url =
         releases::artifact_url(platform::platform(), version, artifact.to_string().as_str())?;
 
-    let checksum = artifacts
+    let expected_checksum = artifacts
         .get_checksum(version)
         .unwrap_or_else(|| panic!("checksum not available: {:?}", version.to_string()));
 
@@ -236,7 +196,7 @@ pub fn blocking_install(version: &Version) -> Result<PathBuf, SolcVmError> {
     }
 
     let binbytes = res.bytes()?;
-    ensure_checksum(&binbytes, version, checksum)?;
+    ensure_checksum(&binbytes, version, &expected_checksum)?;
 
     // lock file to indicate that installation of this solc version will be in progress.
     let lock_path = lock_file_path(version);
@@ -244,11 +204,7 @@ pub fn blocking_install(version: &Version) -> Result<PathBuf, SolcVmError> {
     // same version of solc.
     let _lock = try_lock_file(lock_path)?;
 
-    do_install(
-        version.clone(),
-        binbytes.to_vec(),
-        artifact.to_string().as_str(),
-    )
+    do_install(version, &binbytes, artifact.to_string().as_str())
 }
 
 /// Installs the provided version of Solc in the machine.
@@ -265,7 +221,7 @@ pub async fn install(version: &Version) -> Result<PathBuf, SolcVmError> {
     let download_url =
         releases::artifact_url(platform::platform(), version, artifact.to_string().as_str())?;
 
-    let checksum = artifacts
+    let expected_checksum = artifacts
         .get_checksum(version)
         .unwrap_or_else(|| panic!("checksum not available: {:?}", version.to_string()));
 
@@ -285,7 +241,7 @@ pub async fn install(version: &Version) -> Result<PathBuf, SolcVmError> {
     }
 
     let binbytes = res.bytes().await?;
-    ensure_checksum(&binbytes, version, checksum)?;
+    ensure_checksum(&binbytes, version, &expected_checksum)?;
 
     // lock file to indicate that installation of this solc version will be in progress.
     let lock_path = lock_file_path(version);
@@ -293,23 +249,12 @@ pub async fn install(version: &Version) -> Result<PathBuf, SolcVmError> {
     // same version of solc.
     let _lock = try_lock_file(lock_path)?;
 
-    do_install(
-        version.clone(),
-        binbytes.to_vec(),
-        artifact.to_string().as_str(),
-    )
+    do_install(version, &binbytes, artifact.to_string().as_str())
 }
 
-fn do_install(
-    version: Version,
-    binbytes: Vec<u8>,
-    _artifact: &str,
-) -> Result<PathBuf, SolcVmError> {
-    let installer = {
-        setup_version(version.to_string().as_str())?;
-
-        Installer { version, binbytes }
-    };
+fn do_install(version: &Version, binbytes: &[u8], _artifact: &str) -> Result<PathBuf, SolcVmError> {
+    setup_version(&version.to_string())?;
+    let installer = Installer { version, binbytes };
 
     // Solc versions <= 0.7.1 are .zip files for Windows only
     #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
@@ -322,60 +267,60 @@ fn do_install(
 
 /// Removes the provided version of Solc from the machine.
 pub fn remove_version(version: &Version) -> Result<(), SolcVmError> {
-    fs::remove_dir_all(version_path(version.to_string().as_str()))?;
-    Ok(())
+    fs::remove_dir_all(version_path(version.to_string().as_str())).map_err(Into::into)
 }
 
 /// Setup SVM home directory.
-pub fn setup_data_dir() -> Result<PathBuf, SolcVmError> {
+pub fn setup_data_dir() -> Result<(), SolcVmError> {
     // create $XDG_DATA_HOME or ~/.local/share/svm, or fallback to ~/.svm
-    let svm_dir = SVM_DATA_DIR.to_path_buf();
-    if !svm_dir.as_path().exists() {
-        // Create the directory, continuing if the directory came into existence after the check
-        // for this if statement. This may happen if two copies of SVM run simultaneously (e.g CI).
-        fs::create_dir_all(svm_dir.clone()).or_else(|err| match err.kind() {
-            ErrorKind::AlreadyExists => Ok(()),
-            _ => Err(err),
-        })?;
-    }
+    let data_dir = data_dir();
+
+    // Create the directory, continuing if the directory came into existence after the check
+    // for this if statement. This may happen if two copies of SVM run simultaneously (e.g CI).
+    fs::create_dir_all(data_dir).or_else(|err| match err.kind() {
+        ErrorKind::AlreadyExists => Ok(()),
+        _ => Err(err),
+    })?;
+
     // Check that the SVM directory is indeed a directory, and not e.g. a file.
-    if !svm_dir.as_path().is_dir() {
+    if !data_dir.is_dir() {
         return Err(SolcVmError::IoError(std::io::Error::new(
             ErrorKind::AlreadyExists,
-            "svm directory is not a directory",
+            format!("{} is not a directory", data_dir.display()),
         )));
     }
-    // create $SVM/.global-version
-    let mut global_version = SVM_DATA_DIR.to_path_buf();
-    global_version.push(".global-version");
-    if !global_version.as_path().exists() {
-        fs::File::create(global_version.as_path())?;
+
+    // Create `$SVM/.global-version`.
+    let global_version = global_version_path();
+    if !global_version.exists() {
+        fs::File::create(global_version)?;
     }
-    Ok(svm_dir)
+
+    Ok(())
 }
 
 fn setup_version(version: &str) -> Result<(), SolcVmError> {
     let v = version_path(version);
     if !v.exists() {
-        fs::create_dir_all(v.as_path())?
+        fs::create_dir_all(v)?;
     }
     Ok(())
 }
 
 fn ensure_checksum(
-    binbytes: impl AsRef<[u8]>,
+    binbytes: &[u8],
     version: &Version,
-    expected_checksum: Vec<u8>,
+    expected_checksum: &[u8],
 ) -> Result<(), SolcVmError> {
     let mut hasher = sha2::Sha256::new();
     hasher.update(binbytes);
-    let cs = &hasher.finalize()[..];
+    let checksum = &hasher.finalize()[..];
     // checksum does not match
-    if cs != expected_checksum {
+    if checksum != expected_checksum {
         return Err(SolcVmError::ChecksumMismatch {
             version: version.to_string(),
-            expected: hex::encode(&expected_checksum),
-            actual: hex::encode(cs),
+            expected: hex::encode(expected_checksum),
+            actual: hex::encode(checksum),
         });
     }
     Ok(())
@@ -383,7 +328,7 @@ fn ensure_checksum(
 
 /// Creates the file and locks it exclusively, this will block if the file is currently locked
 fn try_lock_file(lock_path: PathBuf) -> Result<LockFile, SolcVmError> {
-    use fs2::FileExt;
+    use fs4::FileExt;
     let _lock_file = fs::OpenOptions::new()
         .create(true)
         .read(true)
@@ -410,7 +355,73 @@ impl Drop for LockFile {
 
 /// Returns the lockfile to use for a specific file
 fn lock_file_path(version: &Version) -> PathBuf {
-    SVM_DATA_DIR.join(format!(".lock-solc-{version}"))
+    data_dir().join(format!(".lock-solc-{version}"))
+}
+
+// Installer type that copies binary data to the appropriate solc binary file:
+// 1. create target file to copy binary data
+// 2. copy data
+struct Installer<'a> {
+    // version of solc
+    version: &'a Version,
+    // binary data of the solc executable
+    binbytes: &'a [u8],
+}
+
+impl Installer<'_> {
+    /// Installs the solc version at the version specific destination and returns the path to the installed solc file.
+    fn install(self) -> Result<PathBuf, SolcVmError> {
+        let solc_path = version_binary(&self.version.to_string());
+
+        let mut f = fs::File::create(&solc_path)?;
+        #[cfg(target_family = "unix")]
+        f.set_permissions(Permissions::from_mode(0o755))?;
+        f.write_all(self.binbytes)?;
+
+        if platform::is_nixos() && *self.version >= NIXOS_MIN_PATCH_VERSION {
+            patch_for_nixos(&solc_path)?;
+        }
+
+        Ok(solc_path)
+    }
+
+    /// Extracts the solc archive at the version specified destination and returns the path to the
+    /// installed solc binary.
+    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    fn install_zip(self) -> Result<PathBuf, SolcVmError> {
+        let solc_path = version_binary(&self.version.to_string());
+        let version_path = solc_path.parent().unwrap();
+
+        let mut content = std::io::Cursor::new(self.binbytes);
+        let mut archive = zip::ZipArchive::new(&mut content)?;
+        archive.extract(version_path)?;
+
+        std::fs::rename(version_path.join("solc.exe"), solc_path)?;
+
+        Ok(solc_path)
+    }
+}
+
+/// Patch the given binary to use the dynamic linker provided by nixos.
+fn patch_for_nixos(bin: &Path) -> Result<(), SolcVmError> {
+    let output = Command::new("nix-shell")
+        .arg("-p")
+        .arg("patchelf")
+        .arg("--run")
+        .arg(format!(
+            "patchelf --set-interpreter \"$(cat $NIX_CC/nix-support/dynamic-linker)\" {}",
+            bin.display()
+        ))
+        .output()
+        .expect("Failed to execute command");
+
+    match output.status.success() {
+        true => Ok(()),
+        false => Err(SolcVmError::CouldNotPatchForNixOs(
+            String::from_utf8_lossy(&output.stdout).into_owned(),
+            String::from_utf8_lossy(&output.stderr).into_owned(),
+        )),
+    }
 }
 
 #[cfg(test)]
@@ -426,20 +437,20 @@ mod tests {
 
     const LATEST: Version = Version::new(0, 8, 24);
 
-    #[tokio::test]
-    async fn test_data_dir_resolution() {
+    #[test]
+    fn test_data_dir_resolution() {
         let home_dir = dirs::home_dir().unwrap().join(".svm");
         let data_dir = dirs::data_dir();
         let resolved_dir = resolve_data_dir();
-        if home_dir.as_path().exists() || data_dir.is_none() {
-            assert_eq!(resolved_dir.as_path(), home_dir.as_path());
+        if home_dir.exists() || data_dir.is_none() {
+            assert_eq!(resolved_dir, home_dir);
         } else {
-            assert_eq!(resolved_dir.as_path(), data_dir.unwrap().join("svm"));
+            assert_eq!(resolved_dir, data_dir.unwrap().join("svm"));
         }
     }
 
-    #[tokio::test]
-    async fn test_artifact_url() {
+    #[test]
+    fn test_artifact_url() {
         let version = Version::new(0, 5, 0);
         let artifact = "solc-v0.5.0";
         assert_eq!(
@@ -477,15 +488,8 @@ mod tests {
     async fn test_version() {
         let version = "0.8.10".parse().unwrap();
         install(&version).await.unwrap();
-        let solc_path = version_path(version.to_string().as_str()).join(format!("solc-{version}"));
-        let output = Command::new(solc_path)
-            .arg("--version")
-            .stdin(Stdio::piped())
-            .stderr(Stdio::piped())
-            .stdout(Stdio::piped())
-            .output()
-            .unwrap();
-
+        let solc_path = version_binary(version.to_string().as_str());
+        let output = Command::new(solc_path).arg("--version").output().unwrap();
         assert!(String::from_utf8_lossy(&output.stdout)
             .as_ref()
             .contains("0.8.10"));
@@ -496,7 +500,7 @@ mod tests {
     fn blocking_test_version() {
         let version = "0.8.10".parse().unwrap();
         blocking_install(&version).unwrap();
-        let solc_path = version_path(version.to_string().as_str()).join(format!("solc-{version}"));
+        let solc_path = version_binary(version.to_string().as_str());
         let output = Command::new(solc_path)
             .arg("--version")
             .stdin(Stdio::piped())
@@ -542,12 +546,12 @@ mod tests {
         )
         .unwrap();
 
-        let checksum = artifacts.get_checksum(&LATEST).unwrap();
+        let expected_checksum = artifacts.get_checksum(&LATEST).unwrap();
 
         let resp = reqwest::get(download_url).await.unwrap();
         assert!(resp.status().is_success());
         let binbytes = resp.bytes().await.unwrap();
-        ensure_checksum(&binbytes, &LATEST, checksum).unwrap();
+        ensure_checksum(&binbytes, &LATEST, &expected_checksum).unwrap();
     }
 
     // ensures we can download the latest native solc for linux aarch64
@@ -577,8 +581,7 @@ mod tests {
     async fn can_install_windows_zip_release() {
         let version = "0.7.1".parse().unwrap();
         install(&version).await.unwrap();
-        let solc_path =
-            version_path(version.to_string().as_str()).join(&format!("solc-{}", version));
+        let solc_path = version_binary(version.to_string().as_str());
         let output = Command::new(&solc_path)
             .arg("--version")
             .stdin(Stdio::piped())

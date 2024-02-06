@@ -11,7 +11,7 @@ impl ListArgs {
     pub async fn run(self) -> anyhow::Result<()> {
         let all_versions = svm_lib::all_versions().await?;
         let installed_versions = svm_lib::installed_versions().unwrap_or_default();
-        let current_version = svm_lib::current_version()?;
+        let current_version = svm_lib::get_global_version()?;
 
         let a: HashSet<Version> = all_versions.iter().cloned().collect();
         let b: HashSet<Version> = installed_versions.iter().cloned().collect();

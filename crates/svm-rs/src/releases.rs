@@ -2,10 +2,7 @@ use crate::{error::SolcVmError, platform::Platform};
 use once_cell::sync::Lazy;
 use reqwest::get;
 use semver::Version;
-use serde::{
-    de::{self, Deserializer},
-    Deserialize, Serialize,
-};
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use url::Url;
 
@@ -18,16 +15,16 @@ const SOLC_RELEASES_URL: &str = "https://binaries.soliditylang.org";
 const OLD_SOLC_RELEASES_DOWNLOAD_PREFIX: &str =
     "https://raw.githubusercontent.com/crytic/solc/master/linux/amd64";
 
-static OLD_VERSION_MAX: Lazy<Version> = Lazy::new(|| Version::new(0, 4, 9));
+const OLD_VERSION_MAX: Version = Version::new(0, 4, 9);
 
-static OLD_VERSION_MIN: Lazy<Version> = Lazy::new(|| Version::new(0, 4, 0));
+const OLD_VERSION_MIN: Version = Version::new(0, 4, 0);
 
 static OLD_SOLC_RELEASES: Lazy<Releases> = Lazy::new(|| {
     serde_json::from_str(include_str!("../list/linux-arm64-old.json"))
         .expect("could not parse list linux-arm64-old.json")
 });
 
-static LINUX_AARCH64_MIN: Lazy<Version> = Lazy::new(|| Version::new(0, 5, 0));
+const LINUX_AARCH64_MIN: Version = Version::new(0, 5, 0);
 
 static LINUX_AARCH64_URL_PREFIX: &str =
     "https://github.com/nikitastupin/solc/raw/7687d6ce15553292adbb3e6c565eafea6e0caf85/linux/aarch64";
@@ -35,7 +32,7 @@ static LINUX_AARCH64_URL_PREFIX: &str =
 static LINUX_AARCH64_RELEASES_URL: &str =
     "https://github.com/nikitastupin/solc/raw/7687d6ce15553292adbb3e6c565eafea6e0caf85/linux/aarch64/list.json";
 
-static MACOS_AARCH64_NATIVE: Lazy<Version> = Lazy::new(|| Version::new(0, 8, 5));
+const MACOS_AARCH64_NATIVE: Version = Version::new(0, 8, 5);
 
 static MACOS_AARCH64_URL_PREFIX: &str =
     "https://github.com/alloy-rs/solc-builds/raw/e4b80d33bc4d015b2fc3583e217fbf248b2014e1/macosx/aarch64";
@@ -45,6 +42,9 @@ static MACOS_AARCH64_RELEASES_URL: &str =
 
 /// Defines the struct that the JSON-formatted release list can be deserialized into.
 ///
+/// Both the key and value are deserialized into [`semver::Version`].
+///
+/// ```json
 /// {
 ///     "builds": [
 ///         {
@@ -58,9 +58,8 @@ static MACOS_AARCH64_RELEASES_URL: &str =
 ///         ...
 ///     }
 /// }
-///
-/// Both the key and value are deserialized into semver::Version.
-#[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Releases {
     pub builds: Vec<BuildInfo>,
     pub releases: BTreeMap<Version, String>,
@@ -101,14 +100,13 @@ pub struct BuildInfo {
 /// Helper serde module to serialize and deserialize bytes as hex.
 mod hex_string {
     use super::*;
-    use serde::Serializer;
+    use serde::{de, Deserializer, Serializer};
+
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let str_hex = String::deserialize(deserializer)?;
-        let str_hex = str_hex.trim_start_matches("0x");
-        hex::decode(str_hex).map_err(|err| de::Error::custom(err.to_string()))
+        hex::decode(String::deserialize(deserializer)?).map_err(de::Error::custom)
     }
 
     pub fn serialize<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
@@ -116,12 +114,11 @@ mod hex_string {
         S: Serializer,
         T: AsRef<[u8]>,
     {
-        let value = hex::encode(value);
-        serializer.serialize_str(&value)
+        serializer.serialize_str(&hex::encode_prefixed(value))
     }
 }
 
-/// Blocking version fo [`all_realeases`]
+/// Blocking version of [`all_releases`].
 #[cfg(feature = "blocking")]
 pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
     match platform {

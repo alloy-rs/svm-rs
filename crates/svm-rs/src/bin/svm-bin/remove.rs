@@ -3,7 +3,7 @@ use clap::Parser;
 use dialoguer::Input;
 use semver::Version;
 
-#[derive(Debug, Clone, Parser)]
+#[derive(Clone, Debug, Parser)]
 pub struct RemoveArgs {
     /// Solc version to remove
     pub version: String,
@@ -19,7 +19,7 @@ impl RemoveArgs {
             return Ok(());
         } else {
             let mut installed_versions = svm_lib::installed_versions().unwrap_or_default();
-            let current_version = svm_lib::current_version()?;
+            let current_version = svm_lib::get_global_version()?;
             let version = Version::parse(&self.version)?;
 
             if installed_versions.contains(&version) {
@@ -35,7 +35,7 @@ impl RemoveArgs {
                             if let Some(i) = installed_versions.iter().position(|x| *x == v) {
                                 installed_versions.remove(i);
                                 if let Some(new_version) = installed_versions.pop() {
-                                    svm_lib::use_version(&new_version)?;
+                                    svm_lib::set_global_version(&new_version)?;
                                     print::set_global_version(&new_version);
                                 } else {
                                     svm_lib::unset_global_version()?;

@@ -3,7 +3,7 @@ use clap::Parser;
 use dialoguer::Input;
 use semver::Version;
 
-#[derive(Debug, Clone, Parser)]
+#[derive(Clone, Debug, Parser)]
 pub struct UseArgs {
     /// Solc version to use
     pub version: String,
@@ -14,10 +14,10 @@ impl UseArgs {
         let version = Version::parse(&self.version)?;
         let all_versions = svm_lib::all_versions().await?;
         let installed_versions = svm_lib::installed_versions().unwrap_or_default();
-        let current_version = svm_lib::current_version()?;
+        let current_version = svm_lib::get_global_version()?;
 
         if installed_versions.contains(&version) {
-            svm_lib::use_version(&version)?;
+            svm_lib::set_global_version(&version)?;
             print::set_global_version(&version);
         } else if all_versions.contains(&version) {
             println!("Solc {version} is not installed");
@@ -31,7 +31,7 @@ impl UseArgs {
                 svm_lib::install(&version).await?;
                 spinner.finish_with_message(format!("Downloaded Solc: {version}"));
                 if current_version.is_none() {
-                    svm_lib::use_version(&version)?;
+                    svm_lib::set_global_version(&version)?;
                     print::set_global_version(&version);
                 }
             }

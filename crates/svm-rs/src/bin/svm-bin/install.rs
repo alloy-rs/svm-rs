@@ -3,7 +3,7 @@ use clap::Parser;
 use dialoguer::Input;
 use semver::Version;
 
-#[derive(Debug, Clone, PartialEq, Eq, Parser)]
+#[derive(Clone, Debug, PartialEq, Eq, Parser)]
 pub struct InstallArgs {
     /// Solc versions to install
     pub versions: Vec<String>,
@@ -15,7 +15,7 @@ impl InstallArgs {
 
         for version in self.versions {
             let installed_versions = svm_lib::installed_versions().unwrap_or_default();
-            let current_version = svm_lib::current_version()?;
+            let current_version = svm_lib::get_global_version()?;
             let version = Version::parse(&version)?;
 
             if installed_versions.contains(&version) {
@@ -26,7 +26,7 @@ impl InstallArgs {
                     .default("N".into())
                     .interact_text()?;
                 if matches!(input.as_str(), "y" | "Y" | "yes" | "Yes") {
-                    svm_lib::use_version(&version)?;
+                    svm_lib::set_global_version(&version)?;
                     print::set_global_version(&version);
                 }
             } else if all_versions.contains(&version) {
@@ -34,7 +34,7 @@ impl InstallArgs {
                 svm_lib::install(&version).await?;
                 spinner.finish_with_message(format!("Downloaded Solc: {version}"));
                 if current_version.is_none() {
-                    svm_lib::use_version(&version)?;
+                    svm_lib::set_global_version(&version)?;
                     print::set_global_version(&version);
                 }
             } else {

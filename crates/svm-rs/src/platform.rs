@@ -3,7 +3,7 @@ use std::str::FromStr;
 use std::{env, fmt};
 
 /// Types of supported platforms.
-#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Platform {
     LinuxAmd64,
     LinuxAarch64,

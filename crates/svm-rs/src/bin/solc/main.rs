@@ -1,13 +1,26 @@
-use std::{env, process::Command};
+//! Simple Solc wrapper that delegates everything to the global [`svm`](svm_lib) version.
+
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/alloy-rs/core/main/assets/alloy.jpg",
+    html_favicon_url = "https://raw.githubusercontent.com/alloy-rs/core/main/assets/favicon.ico"
+)]
+#![warn(rustdoc::all)]
+#![deny(unused_must_use, rust_2018_idioms)]
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+
+use std::process::{Command, Stdio};
 
 fn main() -> anyhow::Result<()> {
-    let args = env::args().skip(1).collect::<Vec<String>>();
+    let version =
+        svm_lib::get_global_version()?.ok_or(svm_lib::SolcVmError::GlobalVersionNotSet)?;
+    let program = svm_lib::version_binary(&version.to_string());
 
-    let version = svm_lib::current_version()?.ok_or(svm_lib::SolcVmError::GlobalVersionNotSet)?;
-    let mut version_path = svm_lib::version_path(version.to_string().as_str());
-    version_path.push(format!("solc-{}", version.to_string().as_str()));
-
-    let status = Command::new(version_path).args(args).status()?;
+    let status = Command::new(program)
+        .args(std::env::args_os().skip(1))
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status()?;
     let code = status.code().unwrap_or(-1);
     std::process::exit(code);
 }
