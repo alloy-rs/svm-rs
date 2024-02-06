@@ -1,4 +1,4 @@
-//! Simple Solc wrapper that delegates everything to the global [`svm`](svm_lib) version.
+//! Simple Solc wrapper that delegates everything to the global [`svm`] version.
 
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/alloy-rs/core/main/assets/alloy.jpg",
@@ -13,7 +13,6 @@ use std::process::{Command, Stdio};
 fn main() -> anyhow::Result<()> {
     let version = svm::get_global_version()?.ok_or(svm::SvmError::GlobalVersionNotSet)?;
     let program = svm::version_binary(&version.to_string());
-
     let status = Command::new(program)
         .args(std::env::args_os().skip(1))
         .stdin(Stdio::inherit())
