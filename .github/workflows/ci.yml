@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         rust: ["stable", "nightly"]
-        flags: ["--no-default-features", "", "--all-features"]
+        flags: ["", "--all-features"]
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master

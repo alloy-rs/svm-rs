@@ -121,7 +121,7 @@ mod hex_string {
     }
 }
 
-/// Blocking version fo [`all_realeases`]
+/// Blocking version of [`all_releases`].
 #[cfg(feature = "blocking")]
 pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SolcVmError> {
     match platform {
