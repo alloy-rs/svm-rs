@@ -217,7 +217,7 @@ fn unified_releases(releases: Releases, platform: Platform) -> Releases {
 }
 
 /// Construct the URL to the Solc binary for the specified release version and target platform.
-pub fn artifact_url(
+pub(crate) fn artifact_url(
     platform: Platform,
     version: &Version,
     artifact: &str,
@@ -274,6 +274,19 @@ pub fn artifact_url(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_artifact_url() {
+        let version = Version::new(0, 5, 0);
+        let artifact = "solc-v0.5.0";
+        assert_eq!(
+            artifact_url(Platform::LinuxAarch64, &version, artifact).unwrap(),
+            Url::parse(&format!(
+                "https://github.com/nikitastupin/solc/raw/7687d6ce15553292adbb3e6c565eafea6e0caf85/linux/aarch64/{artifact}"
+            ))
+            .unwrap(),
+        )
+    }
 
     #[test]
     fn test_old_releases_deser() {
