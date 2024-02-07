@@ -62,7 +62,7 @@ default = ["rustls", "cli", "solc"]
 
 # lib
 openssl = ["reqwest/native-tls"]
-rustls = ["reqwest/rustls-tls"]
+rustls = ["reqwest/rustls-tls", "reqwest/rustls-tls-native-roots"]
 blocking = ["reqwest/blocking"]
 
 # bin
