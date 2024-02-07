@@ -1,80 +1,80 @@
-name: Rust
+name: CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v2
-    - name: Build
-      run: cargo build --verbose
-    - name: Formatting
-      run: cargo fmt --all -- --check
-    - name: Linting
-      run: cargo clippy -- -D warnings
-    - name: Run tests
-      run: cargo test --all-features
-
-  windows-build:
-    runs-on: windows-latest
-    name: (${{ matrix.target }}, ${{ matrix.cfg_release_channel }})
-    env:
-      CFG_RELEASE_CHANNEL: ${{ matrix.cfg_release_channel }}
+  test:
+    name: test ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
     strategy:
-      max-parallel: 2
       fail-fast: false
       matrix:
-        target: [
-            i686-pc-windows-gnu,
-            i686-pc-windows-msvc,
-            x86_64-pc-windows-gnu,
-            x86_64-pc-windows-msvc,
-        ]
-        cfg_release_channel: [nightly]
-
+        runner: ["ubuntu-latest", "macos-13", "macos-14", "windows-latest"]
     steps:
-      - name: checkout
-        uses: actions/checkout@v2
-
-        # Run build
-      - name: Install Rustup using win.rustup.rs
-        run: |
-          # disable download progress bar
-          $ProgressPreference = "SilentlyContinue"
-          Invoke-WebRequest https://win.rustup.rs/ -OutFile rustup-init.exe
-          .\rustup-init.exe -y --default-host=x86_64-pc-windows-msvc --default-toolchain=none
-          del rustup-init.exe
-          rustup target add ${{ matrix.target }}
-        shell: powershell
-
-      - name: Add mingw32 to path for i686-gnu
-        run: |
-          echo "C:\msys64\mingw32\bin" >> $GITHUB_PATH
-        if: matrix.target == 'i686-pc-windows-gnu' && matrix.channel == 'nightly'
-        shell: bash
-
-      - name: Add mingw64 to path for x86_64-gnu
-        run: echo "C:\msys64\mingw64\bin" >> $GITHUB_PATH
-        if: matrix.target == 'x86_64-pc-windows-gnu' && matrix.channel == 'nightly'
-        shell: bash
-
-      - name: build
-        run: |
-          rustc -Vv
-          cargo -V
-          cargo build
-        shell: cmd
-
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - name: test
-        run: cargo test
-        shell: cmd
+        run: cargo test --workspace --all-targets
+
+  feature-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@cargo-hack
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: cargo hack
+        run: cargo hack check --feature-powerset --depth 2
+
+  clippy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - run: cargo clippy --workspace --all-targets --all-features
+        env:
+          RUSTFLAGS: -Dwarnings
+
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - run: cargo doc --workspace --all-features --no-deps --document-private-items
+        env:
+          RUSTDOCFLAGS: "--cfg docsrs -D warnings"
+
+  fmt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+      - run: cargo fmt --all --check

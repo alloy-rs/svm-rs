@@ -1,14 +1,15 @@
 [package]
 name = "svm-rs"
-version = "0.3.5"
-edition = "2021"
-rust-version = "1.65"
-authors = ["Rohit Narurkar <rohit.narurkar@protonmail.com>"]
-license = "MIT OR Apache-2.0"
-readme = "../../README.md"
-repository = "https://github.com/roynalnaruto/svm-rs"
-homepage = "https://github.com/roynalnaruto/svm-rs"
-description = "Solidity compiler Version Manager"
+description = "Solidity compiler version manager"
+
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+homepage.workspace = true
 
 [lib]
 name = "svm"

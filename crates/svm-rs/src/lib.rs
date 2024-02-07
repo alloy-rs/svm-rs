@@ -336,6 +336,7 @@ fn try_lock_file(lock_path: PathBuf) -> Result<LockFile, SvmError> {
     use fs4::FileExt;
     let _lock_file = fs::OpenOptions::new()
         .create(true)
+        .truncate(true)
         .read(true)
         .write(true)
         .open(&lock_path)?;
