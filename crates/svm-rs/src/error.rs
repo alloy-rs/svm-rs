@@ -4,7 +4,7 @@ use url::Url;
 
 /// Error types from the svm_lib crate.
 #[derive(Debug, Error)]
-pub enum SolcVmError {
+pub enum SvmError {
     #[error("SVM global version not set")]
     GlobalVersionNotSet,
     #[error("Unknown version provided")]

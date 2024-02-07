@@ -1,3 +1,3 @@
-//! Contains all solc builds for the platform it was compiled with
+//! Contains all Solc builds for the platform it was compiled with.
 
 build_const::build_const!("builds");

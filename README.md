@@ -4,7 +4,7 @@
 [<img alt="docs.rs" src="https://img.shields.io/docsrs/svm-rs/latest?color=66c2a5&label=docs-rs&style=for-the-badge" height="20">](https://docs.rs/svm-rs/latest/svm_lib/)
 [<img alt="build status" src="https://img.shields.io/github/actions/workflow/status/roynalnaruto/svm-rs/ci.yml?branch=master&style=for-the-badge" height="20">](https://github.com/roynalnaruto/svm-rs/actions?query=branch%3Amaster)
 
-### Install
+## Install
 
 From [crates.io](https://crates.io):
 
@@ -15,31 +15,24 @@ cargo install svm-rs
 Or from the repository:
 
 ```sh
-cargo install --locked --git https://github.com/roynalnaruto/svm-rs
+cargo install --locked --git https://github.com/alloy-rs/svm-rs/
 ```
 
-### Usage
-
--   List available versions
+## Usage
 
 ```sh
-svm list
-```
+Solc version manager
 
--   Install a version
+Usage: svm <COMMAND>
 
-```sh
-svm install <version>
-```
+Commands:
+  help     Print this message or the help of the given subcommand(s)
+  install  Install Solc versions
+  list     List all Solc versions
+  remove   Remove a Solc version, or "all" to remove all versions
+  use      Set a Solc version as the global default
 
--   Use an installed version
-
-```sh
-svm use <version>
-```
-
--   Remove an installed version
-
-```sh
-svm remove <version>
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
 ```
