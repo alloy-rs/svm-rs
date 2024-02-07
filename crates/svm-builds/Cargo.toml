@@ -1,17 +1,15 @@
 [package]
 name = "svm-rs-builds"
-version = "0.3.5"
-edition = "2021"
-rust-version = "1.65"
-authors = [
-    "Matthias Seitz <matthias.seitz@outlook.de>",
-    "Rohit Narurkar <rohit.narurkar@protonmail.com>",
-]
-license = "MIT OR Apache-2.0"
-readme = "../../README.md"
-repository = "https://github.com/roynalnaruto/svm-rs"
-homepage = "https://github.com/roynalnaruto/svm-rs"
 description = "Solidity compiler builds"
+
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+homepage.workspace = true
 
 [build-dependencies]
 svm = { package = "svm-rs", path = "../svm-rs", version = "0.3.5", default-features = false, features = [

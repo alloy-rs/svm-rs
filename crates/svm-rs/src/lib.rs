@@ -385,6 +385,7 @@ fn try_lock_file(lock_path: PathBuf) -> Result<LockFile, SolcVmError> {
     use fs2::FileExt;
     let _lock_file = fs::OpenOptions::new()
         .create(true)
+        .truncate(true)
         .read(true)
         .write(true)
         .open(&lock_path)?;
