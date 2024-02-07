@@ -12,20 +12,17 @@ repository.workspace = true
 homepage.workspace = true
 
 [build-dependencies]
-svm = { package = "svm-rs", path = "../svm-rs", version = "0.3.5", default-features = false, features = [
-    "blocking",
-    "rustls",
-] }
+svm = { workspace = true, default-features = false, features = ["blocking", "rustls"] }
 
 build_const = "0.2"
-hex = "0.4"
-semver = { version = "1.0", features = ["serde"] }
-serde_json = "1.0"
+hex.workspace = true
+semver = { workspace = true, features = ["serde"] }
+serde_json.workspace = true
 
 [dependencies]
 build_const = "0.2"
-hex = "0.4"
-semver = { version = "1.0", features = ["serde"] }
+hex.workspace = true
+semver = { workspace = true, features = ["serde"] }
 
 [features]
 # helper feature to block network access
