@@ -234,13 +234,9 @@ fn ensure_checksum(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        platform::Platform,
-        releases::{all_releases, artifact_url},
-    };
     use rand::seq::SliceRandom;
 
-    const LATEST: Version = Version::new(0, 8, 24);
+    const LATEST: Version = Version::new(0, 8, 25);
 
     #[tokio::test]
     async fn test_install() {
@@ -307,25 +303,14 @@ mod tests {
         t.await.unwrap().unwrap();
     }
 
-    // ensures we can download the latest native solc for apple silicon
+    // ensures we can download the latest universal solc for apple silicon
     #[tokio::test(flavor = "multi_thread")]
-    async fn can_download_latest_native_apple_silicon() {
-        let artifacts = all_releases(Platform::MacOsAarch64).await.unwrap();
-
-        let artifact = artifacts.releases.get(&LATEST).unwrap();
-        let download_url = artifact_url(
-            Platform::MacOsAarch64,
-            &LATEST,
-            artifact.to_string().as_str(),
-        )
-        .unwrap();
-
-        let expected_checksum = artifacts.get_checksum(&LATEST).unwrap();
-
-        let resp = reqwest::get(download_url).await.unwrap();
-        assert!(resp.status().is_success());
-        let binbytes = resp.bytes().await.unwrap();
-        ensure_checksum(&binbytes, &LATEST, &expected_checksum).unwrap();
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    async fn can_install_latest_native_apple_silicon() {
+        let solc = install(&LATEST).await.unwrap();
+        let output = Command::new(solc).arg("--version").output().unwrap();
+        let version = String::from_utf8_lossy(&output.stdout);
+        assert!(version.contains("0.8.25"), "{}", version);
     }
 
     // ensures we can download the latest native solc for linux aarch64
