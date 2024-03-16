@@ -236,6 +236,7 @@ mod tests {
     use super::*;
     use rand::seq::SliceRandom;
 
+    #[allow(unused)]
     const LATEST: Version = Version::new(0, 8, 25);
 
     #[tokio::test]
