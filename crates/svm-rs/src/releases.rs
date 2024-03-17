@@ -196,11 +196,11 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SvmError> {
             .json::<Releases>()
             .await?;
             releases.builds.retain(|b| {
-                b.version.lt(&MACOS_AARCH64_NATIVE) || b.version.gt(&UNIVERSAL_MACOS_BINARIES)
+                b.version < MACOS_AARCH64_NATIVE || b.version > UNIVERSAL_MACOS_BINARIES
             });
             releases
                 .releases
-                .retain(|v, _| v.lt(&MACOS_AARCH64_NATIVE) || v.gt(&UNIVERSAL_MACOS_BINARIES));
+                .retain(|v, _| *v < MACOS_AARCH64_NATIVE || *v > UNIVERSAL_MACOS_BINARIES);
 
             releases.builds.extend_from_slice(&native.builds);
             releases.releases.append(&mut native.releases);
@@ -236,8 +236,8 @@ pub(crate) fn artifact_url(
     artifact: &str,
 ) -> Result<Url, SvmError> {
     if platform == Platform::LinuxAmd64
-        && version.le(&OLD_VERSION_MAX)
-        && version.ge(&OLD_VERSION_MIN)
+        && *version <= OLD_VERSION_MAX
+        && *version >= OLD_VERSION_MIN
     {
         return Ok(Url::parse(&format!(
             "{OLD_SOLC_RELEASES_DOWNLOAD_PREFIX}/{artifact}"
@@ -245,7 +245,7 @@ pub(crate) fn artifact_url(
     }
 
     if platform == Platform::LinuxAarch64 {
-        if version.ge(&LINUX_AARCH64_MIN) {
+        if *version >= LINUX_AARCH64_MIN {
             return Ok(Url::parse(&format!(
                 "{LINUX_AARCH64_URL_PREFIX}/{artifact}"
             ))?);
@@ -257,7 +257,7 @@ pub(crate) fn artifact_url(
         }
     }
 
-    if platform == Platform::MacOsAmd64 && version.lt(&OLD_VERSION_MIN) {
+    if platform == Platform::MacOsAmd64 && *version < OLD_VERSION_MIN {
         return Err(SvmError::UnsupportedVersion(
             version.to_string(),
             platform.to_string(),
@@ -265,7 +265,7 @@ pub(crate) fn artifact_url(
     }
 
     if platform == Platform::MacOsAarch64 {
-        if version.ge(&MACOS_AARCH64_NATIVE) && version.le(&UNIVERSAL_MACOS_BINARIES) {
+        if *version >= MACOS_AARCH64_NATIVE && *version <= UNIVERSAL_MACOS_BINARIES {
             // fetch natively build solc binaries from `https://github.com/alloy-rs/solc-builds`
             return Ok(Url::parse(&format!(
                 "{MACOS_AARCH64_URL_PREFIX}/{artifact}"
