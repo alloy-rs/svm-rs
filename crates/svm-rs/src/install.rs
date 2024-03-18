@@ -240,6 +240,7 @@ mod tests {
     const LATEST: Version = Version::new(0, 8, 25);
 
     #[tokio::test]
+    #[serial_test::serial]
     async fn test_install() {
         let versions = all_releases(platform())
             .await
@@ -252,6 +253,7 @@ mod tests {
     }
 
     #[cfg(feature = "blocking")]
+    #[serial_test::serial]
     #[test]
     fn blocking_test_install() {
         let versions = crate::releases::blocking_all_releases(platform::platform())
@@ -262,6 +264,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial_test::serial]
     async fn test_version() {
         let version = "0.8.10".parse().unwrap();
         install(&version).await.unwrap();
@@ -273,6 +276,7 @@ mod tests {
     }
 
     #[cfg(feature = "blocking")]
+    #[serial_test::serial]
     #[test]
     fn blocking_test_version() {
         let version = "0.8.10".parse().unwrap();
