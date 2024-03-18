@@ -8,8 +8,13 @@ use url::Url;
 
 // Updating new releases:
 // 1. Update `https://github.com/nikitastupin/solc` commit for `linux/aarch64`
-// 2. Update `https://github.com/alloy-rs/solc-builds` commit for `macosx/aarch64`
+// 2. Update LATEST for tests
 
+/// Base URL for all Solc releases
+/// `"SOLC_RELEASES_URL}/{platform}/list.json"`:
+/// `https://binaries.soliditylang.org/linux-amd64/list.json`
+/// `https://binaries.soliditylang.org/windows-amd64/list.json`
+/// `https://binaries.soliditylang.org/macosx-amd64/list.json`
 const SOLC_RELEASES_URL: &str = "https://binaries.soliditylang.org";
 
 const OLD_SOLC_RELEASES_DOWNLOAD_PREFIX: &str =
@@ -27,12 +32,15 @@ static OLD_SOLC_RELEASES: Lazy<Releases> = Lazy::new(|| {
 const LINUX_AARCH64_MIN: Version = Version::new(0, 5, 0);
 
 static LINUX_AARCH64_URL_PREFIX: &str =
-    "https://github.com/nikitastupin/solc/raw/7687d6ce15553292adbb3e6c565eafea6e0caf85/linux/aarch64";
+    "https://github.com/nikitastupin/solc/raw/fd781c58fe3abb978749bb3184405d1fe7c4cd26/linux/aarch64";
 
 static LINUX_AARCH64_RELEASES_URL: &str =
-    "https://github.com/nikitastupin/solc/raw/7687d6ce15553292adbb3e6c565eafea6e0caf85/linux/aarch64/list.json";
+    "https://github.com/nikitastupin/solc/raw/fd781c58fe3abb978749bb3184405d1fe7c4cd26/linux/aarch64/list.json";
 
+// NOTE: Since version 0.8.24, universal macosx releases are available: https://binaries.soliditylang.org/macosx-amd64/list.json
 const MACOS_AARCH64_NATIVE: Version = Version::new(0, 8, 5);
+
+const UNIVERSAL_MACOS_BINARIES: Version = Version::new(0, 8, 24);
 
 static MACOS_AARCH64_URL_PREFIX: &str =
     "https://github.com/alloy-rs/solc-builds/raw/e4b80d33bc4d015b2fc3583e217fbf248b2014e1/macosx/aarch64";
@@ -133,6 +141,8 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SvmError> {
             //
             // 2. For version <= 0.8.4 we fetch releases from https://binaries.soliditylang.org and
             // require Rosetta support.
+            //
+            // Note: Since 0.8.24 universal macosx releases are available
             let mut native =
                 reqwest::blocking::get(MACOS_AARCH64_RELEASES_URL)?.json::<Releases>()?;
             let mut releases = reqwest::blocking::get(format!(
@@ -145,6 +155,7 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SvmError> {
                 .builds
                 .retain(|b| b.version.lt(&MACOS_AARCH64_NATIVE));
             releases.builds.extend_from_slice(&native.builds);
+
             releases.releases.append(&mut native.releases);
             Ok(releases)
         }
@@ -184,10 +195,12 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SvmError> {
             .await?
             .json::<Releases>()
             .await?;
+            releases.builds.retain(|b| {
+                b.version < MACOS_AARCH64_NATIVE || b.version > UNIVERSAL_MACOS_BINARIES
+            });
             releases
-                .builds
-                .retain(|b| b.version.lt(&MACOS_AARCH64_NATIVE));
-            releases.releases.retain(|v, _| v.lt(&MACOS_AARCH64_NATIVE));
+                .releases
+                .retain(|v, _| *v < MACOS_AARCH64_NATIVE || *v > UNIVERSAL_MACOS_BINARIES);
 
             releases.builds.extend_from_slice(&native.builds);
             releases.releases.append(&mut native.releases);
@@ -223,8 +236,8 @@ pub(crate) fn artifact_url(
     artifact: &str,
 ) -> Result<Url, SvmError> {
     if platform == Platform::LinuxAmd64
-        && version.le(&OLD_VERSION_MAX)
-        && version.ge(&OLD_VERSION_MIN)
+        && *version <= OLD_VERSION_MAX
+        && *version >= OLD_VERSION_MIN
     {
         return Ok(Url::parse(&format!(
             "{OLD_SOLC_RELEASES_DOWNLOAD_PREFIX}/{artifact}"
@@ -232,7 +245,7 @@ pub(crate) fn artifact_url(
     }
 
     if platform == Platform::LinuxAarch64 {
-        if version.ge(&LINUX_AARCH64_MIN) {
+        if *version >= LINUX_AARCH64_MIN {
             return Ok(Url::parse(&format!(
                 "{LINUX_AARCH64_URL_PREFIX}/{artifact}"
             ))?);
@@ -244,7 +257,7 @@ pub(crate) fn artifact_url(
         }
     }
 
-    if platform == Platform::MacOsAmd64 && version.lt(&OLD_VERSION_MIN) {
+    if platform == Platform::MacOsAmd64 && *version < OLD_VERSION_MIN {
         return Err(SvmError::UnsupportedVersion(
             version.to_string(),
             platform.to_string(),
@@ -252,11 +265,13 @@ pub(crate) fn artifact_url(
     }
 
     if platform == Platform::MacOsAarch64 {
-        if version.ge(&MACOS_AARCH64_NATIVE) {
+        if *version >= MACOS_AARCH64_NATIVE && *version <= UNIVERSAL_MACOS_BINARIES {
+            // fetch natively build solc binaries from `https://github.com/alloy-rs/solc-builds`
             return Ok(Url::parse(&format!(
                 "{MACOS_AARCH64_URL_PREFIX}/{artifact}"
             ))?);
         } else {
+            // if version is older or universal macos binaries are available, fetch from `https://binaries.soliditylang.org`
             return Ok(Url::parse(&format!(
                 "{}/{}/{}",
                 SOLC_RELEASES_URL,
@@ -282,7 +297,7 @@ mod tests {
         assert_eq!(
             artifact_url(Platform::LinuxAarch64, &version, artifact).unwrap(),
             Url::parse(&format!(
-                "https://github.com/nikitastupin/solc/raw/7687d6ce15553292adbb3e6c565eafea6e0caf85/linux/aarch64/{artifact}"
+                "https://github.com/nikitastupin/solc/raw/fd781c58fe3abb978749bb3184405d1fe7c4cd26/linux/aarch64/{artifact}"
             ))
             .unwrap(),
         )

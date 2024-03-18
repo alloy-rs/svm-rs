@@ -56,6 +56,7 @@ zip = "0.6"
 rand = "0.8"
 tempfile = "3.10"
 tokio = { version = "1.36", features = ["rt-multi-thread", "macros"] }
+serial_test = "3.0"
 
 [features]
 default = ["rustls", "cli", "solc"]
