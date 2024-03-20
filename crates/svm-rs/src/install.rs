@@ -278,6 +278,19 @@ mod tests {
     #[cfg(feature = "blocking")]
     #[serial_test::serial]
     #[test]
+    fn blocking_test_latest() {
+        blocking_install(&LATEST).unwrap();
+        let solc_path = version_binary(LATEST.to_string().as_str());
+        let output = Command::new(solc_path).arg("--version").output().unwrap();
+
+        assert!(String::from_utf8_lossy(&output.stdout)
+            .as_ref()
+            .contains(&LATEST.to_string()));
+    }
+
+    #[cfg(feature = "blocking")]
+    #[serial_test::serial]
+    #[test]
     fn blocking_test_version() {
         let version = "0.8.10".parse().unwrap();
         blocking_install(&version).unwrap();

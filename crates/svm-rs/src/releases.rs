@@ -151,9 +151,12 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SvmError> {
                 Platform::MacOsAmd64,
             ))?
             .json::<Releases>()?;
+            releases.builds.retain(|b| {
+                b.version < MACOS_AARCH64_NATIVE || b.version > UNIVERSAL_MACOS_BINARIES
+            });
             releases
-                .builds
-                .retain(|b| b.version.lt(&MACOS_AARCH64_NATIVE));
+                .releases
+                .retain(|v, _| *v < MACOS_AARCH64_NATIVE || *v > UNIVERSAL_MACOS_BINARIES);
             releases.builds.extend_from_slice(&native.builds);
 
             releases.releases.append(&mut native.releases);
