@@ -1548,7 +1548,7 @@ checksum = "81cdd64d312baedb58e21336b31bc043b77e01cc99033ce76ef539f78e965ebc"
 
 [[package]]
 name = "svm-rs"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1577,7 +1577,7 @@ dependencies = [
 
 [[package]]
 name = "svm-rs-builds"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "build_const",
  "const-hex",
