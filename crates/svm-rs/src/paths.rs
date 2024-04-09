@@ -22,7 +22,7 @@ pub fn setup_data_dir() -> Result<(), SvmError> {
     if !data_dir.is_dir() {
         return Err(SvmError::IoError(io::Error::new(
             io::ErrorKind::AlreadyExists,
-            format!("{} is not a directory", data_dir.display()),
+            format!("svm data dir '{}' is not a directory", data_dir.display()),
         )));
     }
 
