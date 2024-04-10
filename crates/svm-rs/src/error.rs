@@ -35,5 +35,5 @@ pub enum SvmError {
     UnsuccessfulResponse(Url, StatusCode),
     #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
     #[error(transparent)]
-    ZipError(#[from] zip::result::ZipError),
+    ZipError(#[from] zip_next::result::ZipError),
 }
