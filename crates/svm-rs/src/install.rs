@@ -181,7 +181,7 @@ impl Installer<'_> {
         let version_path = solc_path.parent().unwrap();
 
         let mut content = std::io::Cursor::new(self.binbytes);
-        let mut archive = zip_next::ZipArchive::new(&mut content)?;
+        let mut archive = zip::ZipArchive::new(&mut content)?;
         archive.extract(version_path)?;
 
         std::fs::rename(version_path.join("solc.exe"), &solc_path)?;
