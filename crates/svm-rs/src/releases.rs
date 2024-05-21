@@ -32,10 +32,10 @@ static OLD_SOLC_RELEASES: Lazy<Releases> = Lazy::new(|| {
 const LINUX_AARCH64_MIN: Version = Version::new(0, 5, 0);
 
 static LINUX_AARCH64_URL_PREFIX: &str =
-    "https://github.com/nikitastupin/solc/raw/fd781c58fe3abb978749bb3184405d1fe7c4cd26/linux/aarch64";
+    "https://github.com/nikitastupin/solc/raw/57211f3e182ce7c2a7c0fdead02656d404d9b37a/linux/aarch64";
 
 static LINUX_AARCH64_RELEASES_URL: &str =
-    "https://github.com/nikitastupin/solc/raw/fd781c58fe3abb978749bb3184405d1fe7c4cd26/linux/aarch64/list.json";
+    "https://github.com/nikitastupin/solc/raw/57211f3e182ce7c2a7c0fdead02656d404d9b37a/linux/aarch64/list.json";
 
 // NOTE: Since version 0.8.24, universal macosx releases are available: https://binaries.soliditylang.org/macosx-amd64/list.json
 const MACOS_AARCH64_NATIVE: Version = Version::new(0, 8, 5);
@@ -300,7 +300,7 @@ mod tests {
         assert_eq!(
             artifact_url(Platform::LinuxAarch64, &version, artifact).unwrap(),
             Url::parse(&format!(
-                "https://github.com/nikitastupin/solc/raw/fd781c58fe3abb978749bb3184405d1fe7c4cd26/linux/aarch64/{artifact}"
+                "https://github.com/nikitastupin/solc/raw/57211f3e182ce7c2a7c0fdead02656d404d9b37a/linux/aarch64/{artifact}"
             ))
             .unwrap(),
         )
