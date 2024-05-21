@@ -3,7 +3,7 @@ members = ["crates/svm-builds", "crates/svm-rs"]
 resolver = "2"
 
 [workspace.package]
-version = "0.5.2"
+version = "0.5.3"
 edition = "2021"
 rust-version = "1.70"
 authors = [
@@ -16,7 +16,7 @@ repository = "https://github.com/alloy-rs/svm-rs"
 homepage = "https://github.com/alloy-rs/svm-rs"
 
 [workspace.dependencies]
-svm = { package = "svm-rs", version = "0.5.2", path = "crates/svm-rs", default-features = false }
+svm = { package = "svm-rs", version = "0.5.3", path = "crates/svm-rs", default-features = false }
 
 hex = { package = "const-hex", version = "1.10" }
 semver = "1"
