@@ -26,7 +26,7 @@ pub fn available_versions(versions: Vec<Version>) {
     println!("\n{}", style("Available to Install").bold());
     let groups = versions
         .iter()
-        .group_by(|v| v.minor)
+        .chunk_by(|v| v.minor)
         .into_iter()
         .map(|(_, g)| g.cloned().collect())
         .collect::<Vec<Vec<Version>>>();
