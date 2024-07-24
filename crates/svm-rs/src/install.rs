@@ -15,8 +15,8 @@ use std::{
 #[cfg(target_family = "unix")]
 use std::{fs::Permissions, os::unix::fs::PermissionsExt};
 
-/// The timeout to use for requests to the source
-const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
+/// The timeout to use for requests to the source (10 minutes).
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(600);
 
 /// Version beyond which solc binaries are not fully static, hence need to be patched for NixOS.
 const NIXOS_MIN_PATCH_VERSION: Version = Version::new(0, 7, 6);
