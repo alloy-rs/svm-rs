@@ -9,7 +9,8 @@
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
 use anyhow::Context;
-use std::process::{Command, Stdio};
+use std::io;
+use std::process::{Command, ExitStatus, Stdio};
 
 fn main() {
     let code = match main_() {
@@ -54,11 +55,22 @@ fn main_() -> anyhow::Result<i32> {
         );
     }
 
-    let status = Command::new(bin)
-        .args(args)
+    let mut cmd = Command::new(bin);
+    cmd.args(args)
         .stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()?;
-    Ok(status.code().unwrap_or(-1))
+        .stderr(Stdio::inherit());
+    Ok(exec(&mut cmd)?.code().unwrap_or(-1))
+}
+
+fn exec(cmd: &mut Command) -> io::Result<ExitStatus> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::prelude::*;
+        Err(cmd.exec())
+    }
+    #[cfg(not(unix))]
+    {
+        cmd.status()
+    }
 }
