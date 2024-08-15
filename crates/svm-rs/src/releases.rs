@@ -1,9 +1,8 @@
 use crate::{error::SvmError, platform::Platform};
-use once_cell::sync::Lazy;
 use reqwest::get;
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::LazyLock};
 use url::Url;
 
 // Updating new releases:
@@ -24,7 +23,7 @@ const OLD_VERSION_MAX: Version = Version::new(0, 4, 9);
 
 const OLD_VERSION_MIN: Version = Version::new(0, 4, 0);
 
-static OLD_SOLC_RELEASES: Lazy<Releases> = Lazy::new(|| {
+static OLD_SOLC_RELEASES: LazyLock<Releases> = LazyLock::new(|| {
     serde_json::from_str(include_str!("../list/linux-arm64-old.json"))
         .expect("could not parse list linux-arm64-old.json")
 });

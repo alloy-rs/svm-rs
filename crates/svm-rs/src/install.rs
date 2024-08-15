@@ -115,7 +115,7 @@ fn do_install(version: &Version, binbytes: &[u8], _artifact: &str) -> Result<Pat
 
 /// Creates the file and locks it exclusively, this will block if the file is currently locked
 fn try_lock_file(lock_path: PathBuf) -> Result<LockFile, SvmError> {
-    use fs4::FileExt;
+    use fs4::fs_std::FileExt;
     let _lock_file = fs::OpenOptions::new()
         .create(true)
         .truncate(true)
