@@ -16,6 +16,7 @@ mod print;
 mod remove;
 mod r#use;
 mod utils;
+mod which;
 
 /// Solc version manager.
 #[derive(Debug, Parser)]
@@ -28,6 +29,7 @@ enum Svm {
     List(list::ListCmd),
     Install(install::InstallCmd),
     Use(r#use::UseCmd),
+    Which(which::WhichCmd),
     Remove(remove::RemoveCmd),
 }
 
@@ -41,6 +43,7 @@ async fn main() -> anyhow::Result<()> {
         Svm::List(cmd) => cmd.run().await?,
         Svm::Install(cmd) => cmd.run().await?,
         Svm::Use(cmd) => cmd.run().await?,
+        Svm::Which(cmd) => cmd.run()?,
         Svm::Remove(cmd) => cmd.run().await?,
     }
 
