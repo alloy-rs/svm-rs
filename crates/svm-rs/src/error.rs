@@ -26,6 +26,8 @@ pub enum SvmError {
     #[error(transparent)]
     IoError(#[from] std::io::Error),
     #[error(transparent)]
+    PersistError(#[from] tempfile::PathPersistError),
+    #[error(transparent)]
     ReqwestError(#[from] reqwest::Error),
     #[error(transparent)]
     SemverError(#[from] semver::Error),

@@ -11,6 +11,7 @@ use std::{
     process::Command,
     time::Duration,
 };
+use tempfile::NamedTempFile;
 
 #[cfg(target_family = "unix")]
 use std::{fs::Permissions, os::unix::fs::PermissionsExt};
@@ -159,16 +160,26 @@ struct Installer<'a> {
 impl Installer<'_> {
     /// Installs the solc version at the version specific destination and returns the path to the installed solc file.
     fn install(self) -> Result<PathBuf, SvmError> {
-        let solc_path = version_binary(&self.version.to_string());
+        let named_temp_file = NamedTempFile::new_in(data_dir())?;
+        let (mut f, temp_path) = named_temp_file.into_parts();
 
-        let mut f = fs::File::create(&solc_path)?;
         #[cfg(target_family = "unix")]
         f.set_permissions(Permissions::from_mode(0o755))?;
         f.write_all(self.binbytes)?;
 
         if platform::is_nixos() && *self.version >= NIXOS_MIN_PATCH_VERSION {
-            patch_for_nixos(&solc_path)?;
+            patch_for_nixos(&temp_path)?;
         }
+
+        let solc_path = version_binary(&self.version.to_string());
+
+        // Windows requires that the old file be moved out of the way first.
+        if cfg!(target_os = "windows") {
+            let temp_path = NamedTempFile::new_in(data_dir()).map(NamedTempFile::into_temp_path)?;
+            fs::rename(&solc_path, &temp_path).unwrap_or_default();
+        }
+
+        temp_path.persist(&solc_path)?;
 
         Ok(solc_path)
     }
