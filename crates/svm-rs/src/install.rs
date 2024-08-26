@@ -252,6 +252,33 @@ mod tests {
         assert!(install(rand_version).await.is_ok());
     }
 
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn can_install_while_solc_is_running() {
+        const WHICH: &str = if cfg!(target_os = "windows") {
+            "where"
+        } else {
+            "which"
+        };
+
+        let version: Version = "0.8.10".parse().unwrap();
+        let solc_path = version_binary(version.to_string().as_str());
+
+        fs::create_dir_all(solc_path.parent().unwrap()).unwrap();
+
+        // Overwrite solc with `sleep` and call it with `infinity`.
+        let stdout = Command::new(WHICH).arg("sleep").output().unwrap().stdout;
+        let sleep_path = String::from_utf8(stdout).unwrap();
+        fs::copy(sleep_path.trim_end(), &solc_path).unwrap();
+        let mut child = Command::new(solc_path).arg("infinity").spawn().unwrap();
+
+        // Install should not fail with "text file busy".
+        install(&version).await.unwrap();
+
+        child.kill().unwrap();
+        let _: std::process::ExitStatus = child.wait().unwrap();
+    }
+
     #[cfg(feature = "blocking")]
     #[serial_test::serial]
     #[test]
