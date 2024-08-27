@@ -175,8 +175,7 @@ impl Installer<'_> {
 
         // Windows requires that the old file be moved out of the way first.
         if cfg!(target_os = "windows") {
-            let temp_path = NamedTempFile::new_in(data_dir()).map(NamedTempFile::into_temp_path)?;
-            fs::rename(&solc_path, &temp_path).unwrap_or_default();
+            let _ = fs::remove_file(&solc_path);
         }
 
         temp_path.persist(&solc_path)?;
