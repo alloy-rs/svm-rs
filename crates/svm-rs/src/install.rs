@@ -11,6 +11,7 @@ use std::{
     process::Command,
     time::Duration,
 };
+use tempfile::NamedTempFile;
 
 #[cfg(target_family = "unix")]
 use std::{fs::Permissions, os::unix::fs::PermissionsExt};
@@ -159,16 +160,26 @@ struct Installer<'a> {
 impl Installer<'_> {
     /// Installs the solc version at the version specific destination and returns the path to the installed solc file.
     fn install(self) -> Result<PathBuf, SvmError> {
-        let solc_path = version_binary(&self.version.to_string());
+        let named_temp_file = NamedTempFile::new_in(data_dir())?;
+        let (mut f, temp_path) = named_temp_file.into_parts();
 
-        let mut f = fs::File::create(&solc_path)?;
         #[cfg(target_family = "unix")]
         f.set_permissions(Permissions::from_mode(0o755))?;
         f.write_all(self.binbytes)?;
 
         if platform::is_nixos() && *self.version >= NIXOS_MIN_PATCH_VERSION {
-            patch_for_nixos(&solc_path)?;
+            patch_for_nixos(&temp_path)?;
         }
+
+        let solc_path = version_binary(&self.version.to_string());
+
+        // Windows requires that the old file be moved out of the way first.
+        if cfg!(target_os = "windows") {
+            let temp_path = NamedTempFile::new_in(data_dir()).map(NamedTempFile::into_temp_path)?;
+            fs::rename(&solc_path, &temp_path).unwrap_or_default();
+        }
+
+        temp_path.persist(&solc_path)?;
 
         Ok(solc_path)
     }
@@ -250,6 +261,33 @@ mod tests {
             .collect::<Vec<Version>>();
         let rand_version = versions.choose(&mut rand::thread_rng()).unwrap();
         assert!(install(rand_version).await.is_ok());
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn can_install_while_solc_is_running() {
+        const WHICH: &str = if cfg!(target_os = "windows") {
+            "where"
+        } else {
+            "which"
+        };
+
+        let version: Version = "0.8.10".parse().unwrap();
+        let solc_path = version_binary(version.to_string().as_str());
+
+        fs::create_dir_all(solc_path.parent().unwrap()).unwrap();
+
+        // Overwrite solc with `sleep` and call it with `infinity`.
+        let stdout = Command::new(WHICH).arg("sleep").output().unwrap().stdout;
+        let sleep_path = String::from_utf8(stdout).unwrap();
+        fs::copy(sleep_path.trim_end(), &solc_path).unwrap();
+        let mut child = Command::new(solc_path).arg("infinity").spawn().unwrap();
+
+        // Install should not fail with "text file busy".
+        install(&version).await.unwrap();
+
+        child.kill().unwrap();
+        let _: std::process::ExitStatus = child.wait().unwrap();
     }
 
     #[cfg(feature = "blocking")]
