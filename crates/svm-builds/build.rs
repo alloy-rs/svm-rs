@@ -16,8 +16,9 @@ use svm::Releases;
 /// - "windows-amd64"
 pub const SVM_TARGET_PLATFORM: &str = "SVM_TARGET_PLATFORM";
 
-/// The path to the releases JSON file, that was pre-fetched manually. If this
-/// variable is defined, svm-builds won't attempt to deduce anything about the
+/// The path to the releases JSON file, that was pre-fetched manually.
+///
+/// If this variable is defined, svm-builds won't attempt to deduce anything about the
 /// platfrom or perform network calls, and will instead treat the file as the
 /// source of truth.
 ///
