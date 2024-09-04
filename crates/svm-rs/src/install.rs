@@ -248,7 +248,7 @@ mod tests {
     use rand::seq::SliceRandom;
 
     #[allow(unused)]
-    const LATEST: Version = Version::new(0, 8, 26);
+    const LATEST: Version = Version::new(0, 8, 27);
 
     #[tokio::test]
     #[serial_test::serial]
@@ -366,7 +366,7 @@ mod tests {
         let solc = install(&LATEST).await.unwrap();
         let output = Command::new(solc).arg("--version").output().unwrap();
         let version = String::from_utf8_lossy(&output.stdout);
-        assert!(version.contains("0.8.26"), "{}", version);
+        assert!(version.contains("0.8.27"), "{}", version);
     }
 
     // ensures we can download the latest native solc for linux aarch64
