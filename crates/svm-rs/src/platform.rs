@@ -16,12 +16,12 @@ pub enum Platform {
 impl fmt::Display for Platform {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let s = match self {
-            Platform::LinuxAmd64 => "linux-amd64",
-            Platform::LinuxAarch64 => "linux-aarch64",
-            Platform::MacOsAmd64 => "macosx-amd64",
-            Platform::MacOsAarch64 => "macosx-aarch64",
-            Platform::WindowsAmd64 => "windows-amd64",
-            Platform::Unsupported => "Unsupported-platform",
+            Self::LinuxAmd64 => "linux-amd64",
+            Self::LinuxAarch64 => "linux-aarch64",
+            Self::MacOsAmd64 => "macosx-amd64",
+            Self::MacOsAarch64 => "macosx-aarch64",
+            Self::WindowsAmd64 => "windows-amd64",
+            Self::Unsupported => "Unsupported-platform",
         };
         f.write_str(s)
     }
@@ -32,11 +32,11 @@ impl FromStr for Platform {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "linux-amd64" => Ok(Platform::LinuxAmd64),
-            "linux-aarch64" => Ok(Platform::LinuxAarch64),
-            "macosx-amd64" => Ok(Platform::MacOsAmd64),
-            "macosx-aarch64" => Ok(Platform::MacOsAarch64),
-            "windows-amd64" => Ok(Platform::WindowsAmd64),
+            "linux-amd64" => Ok(Self::LinuxAmd64),
+            "linux-aarch64" => Ok(Self::LinuxAarch64),
+            "macosx-amd64" => Ok(Self::MacOsAmd64),
+            "macosx-aarch64" => Ok(Self::MacOsAarch64),
+            "windows-amd64" => Ok(Self::WindowsAmd64),
             s => Err(format!("unsupported platform {s}")),
         }
     }

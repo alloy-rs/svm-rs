@@ -15,6 +15,28 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/alloy-rs/svm-rs"
 homepage = "https://github.com/alloy-rs/svm-rs"
 
+[workspace.lints.clippy]
+dbg-macro = "warn"
+manual-string-new = "warn"
+uninlined-format-args = "warn"
+use-self = "warn"
+redundant-clone = "warn"
+missing-const-for-fn = "warn"
+needless-return = "allow"
+
+[workspace.lints.rust]
+# missing-copy-implementations = "warn"
+# missing-debug-implementations = "warn"
+# missing-docs = "warn"
+rust-2018-idioms = "warn"
+# unreachable-pub = "warn"
+unused-must-use = "warn"
+redundant-lifetimes = "warn"
+unnameable-types = "warn"
+
+[workspace.lints.rustdoc]
+all = "warn"
+
 [workspace.dependencies]
 svm = { package = "svm-rs", version = "0.5.7", path = "crates/svm-rs", default-features = false }
 

@@ -317,7 +317,7 @@ mod tests {
             .await
             .expect("could not fetch releases for macos-aarch64");
         let rosetta = Version::new(0, 8, 4);
-        let native = MACOS_AARCH64_NATIVE.clone();
+        let native = MACOS_AARCH64_NATIVE;
         let url1 = artifact_url(
             Platform::MacOsAarch64,
             &rosetta,
