@@ -23,3 +23,9 @@ semver = "1"
 serde = "1"
 serde_json = "1"
 reqwest = { version = "0.12", default-features = false, features = ["socks"] }
+
+[profile.release]
+lto = "fat"
+debug = 0
+strip = "debuginfo"
+codegen-units = 1
