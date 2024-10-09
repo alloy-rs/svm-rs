@@ -16,7 +16,7 @@ fn main() {
     let code = match main_() {
         Ok(code) => code,
         Err(err) => {
-            eprintln!("svm: error: {err:?}");
+            eprintln!("svm: error: {err}");
             1
         }
     };

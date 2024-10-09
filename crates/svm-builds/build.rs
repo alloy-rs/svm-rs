@@ -114,9 +114,8 @@ fn add_platform_const(writer: &mut build_const::ConstValueWriter, platform: svm:
     writer.add_raw(&format!(
         r#"
 /// The `svm::Platform` all constants were built for
-pub const TARGET_PLATFORM: &str = "{}";
-"#,
-        platform
+pub const TARGET_PLATFORM: &str = "{platform}";
+"#
     ));
 }
 
@@ -125,17 +124,11 @@ fn generate() {
 
     let releases: Releases = if let Ok(file_path) = std::env::var(SVM_RELEASES_LIST_JSON) {
         let file = File::open(file_path).unwrap_or_else(|_| {
-            panic!(
-                "{:?} defined, but cannot read the file referenced",
-                SVM_RELEASES_LIST_JSON
-            )
+            panic!("{SVM_RELEASES_LIST_JSON:?} defined, but cannot read the file referenced")
         });
 
         serde_json::from_reader(file).unwrap_or_else(|_| {
-            panic!(
-                "Failed to parse the JSON from {:?} file",
-                SVM_RELEASES_LIST_JSON
-            )
+            panic!("Failed to parse the JSON from {SVM_RELEASES_LIST_JSON:?} file")
         })
     } else {
         svm::blocking_all_releases(platform).expect("Failed to fetch releases")

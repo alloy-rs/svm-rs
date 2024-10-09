@@ -10,8 +10,14 @@ license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 
+[lints]
+workspace = true
+
 [build-dependencies]
-svm = { workspace = true, default-features = false, features = ["blocking", "rustls"] }
+svm = { workspace = true, default-features = false, features = [
+    "blocking",
+    "rustls",
+] }
 
 build_const = "0.2"
 hex.workspace = true
