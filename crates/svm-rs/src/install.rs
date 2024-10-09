@@ -248,7 +248,7 @@ mod tests {
     use rand::seq::SliceRandom;
 
     #[allow(unused)]
-    const LATEST: Version = Version::new(0, 8, 27);
+    const LATEST: Version = Version::new(0, 8, 28);
 
     #[tokio::test]
     #[serial_test::serial]
@@ -365,8 +365,11 @@ mod tests {
     async fn can_install_latest_native_apple_silicon() {
         let solc = install(&LATEST).await.unwrap();
         let output = Command::new(solc).arg("--version").output().unwrap();
-        let version = String::from_utf8_lossy(&output.stdout);
-        assert!(version.contains("0.8.27"), "{}", version);
+        let version_output = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            version_output.contains(&LATEST.to_string()),
+            "{version_output}"
+        );
     }
 
     // ensures we can download the latest native solc for linux aarch64
