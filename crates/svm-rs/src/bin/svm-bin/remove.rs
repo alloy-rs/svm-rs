@@ -12,7 +12,7 @@ pub struct RemoveCmd {
 
 impl RemoveCmd {
     pub async fn run(self) -> anyhow::Result<()> {
-        if self.version.to_ascii_lowercase() == "all" {
+        if self.version.eq_ignore_ascii_case("all") {
             for v in svm::installed_versions().unwrap_or_default() {
                 svm::remove_version(&v)?;
             }
