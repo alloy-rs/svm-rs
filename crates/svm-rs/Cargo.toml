@@ -43,7 +43,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 sha2 = "0.10"
 tempfile = "3.10"
-thiserror = "1.0"
+thiserror = ">=1.0, <3.0"
 url = "2.5"
 
 # CLI
