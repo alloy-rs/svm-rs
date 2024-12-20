@@ -34,7 +34,7 @@ vergen = { version = "8", optional = true, features = [
 ] }
 
 [dependencies]
-fs4 = "0.10"
+fs4 = "0.12"
 hex.workspace = true
 dirs = "5.0"
 reqwest = { workspace = true, default-features = false, features = ["json"] }
