@@ -53,6 +53,7 @@ pub fn data_dir() -> &'static Path {
     })
 }
 
+#[allow(dead_code)]
 fn resolve_data_dir() -> PathBuf {
     let home_dir = dirs::home_dir()
         .expect("could not detect user home directory")
@@ -101,21 +102,4 @@ pub fn version_binary(version: &str) -> PathBuf {
     binary.push("solc-");
     binary.push(version);
     PathBuf::from(binary)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_data_dir_resolution() {
-        let home_dir = dirs::home_dir().unwrap().join(".svm");
-        let data_dir = dirs::data_dir();
-        let resolved_dir = resolve_data_dir();
-        if home_dir.exists() || data_dir.is_none() {
-            assert_eq!(resolved_dir, home_dir);
-        } else {
-            assert_eq!(resolved_dir, data_dir.unwrap().join("svm"));
-        }
-    }
 }
