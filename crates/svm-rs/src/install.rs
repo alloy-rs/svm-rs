@@ -212,7 +212,7 @@ fn patch_for_nixos(bin: &Path) -> Result<(), SvmError> {
             bin.display()
         ))
         .output()
-        .expect("Failed to execute command");
+        .map_err(|e| SvmError::CouldNotPatchForNixOs(String::new(), e.to_string()))?;
 
     match output.status.success() {
         true => Ok(()),

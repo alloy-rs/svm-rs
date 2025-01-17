@@ -43,7 +43,10 @@ impl FromStr for Platform {
 }
 
 pub fn is_nixos() -> bool {
-    std::path::Path::new("/etc/NIXOS").exists()
+    cfg!(target_os = "linux")
+        && (std::path::Path::new("/etc/nixos").exists()
+            || std::path::Path::new("/etc/NIXOS").exists())
+        && std::fs::read_to_string("/etc/os-release").is_ok_and(|s| s.contains("NixOS"))
 }
 
 /// Read the current machine's platform.
