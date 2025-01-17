@@ -27,8 +27,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
+      - uses: taiki-e/install-action@cargo-nextest
       - name: test
-        run: cargo test --workspace --all-targets
+        run: cargo nextest run --workspace --all-targets
 
   feature-checks:
     runs-on: ubuntu-latest
