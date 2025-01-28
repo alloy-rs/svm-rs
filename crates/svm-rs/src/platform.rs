@@ -4,6 +4,7 @@ use std::{env, fmt};
 
 /// Types of supported platforms.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Platform {
     LinuxAmd64,
     LinuxAarch64,
