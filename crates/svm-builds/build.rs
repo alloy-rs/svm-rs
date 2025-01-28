@@ -14,6 +14,7 @@ use svm::Releases;
 /// - "macosx-amd64"
 /// - "macosx-aarch64"
 /// - "windows-amd64"
+/// - "android-aarch64"
 pub const SVM_TARGET_PLATFORM: &str = "SVM_TARGET_PLATFORM";
 
 /// The path to the releases JSON file, that was pre-fetched manually.
