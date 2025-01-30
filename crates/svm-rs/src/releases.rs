@@ -50,10 +50,10 @@ static MACOS_AARCH64_RELEASES_URL: &str =
 const ANDROID_AARCH64_MIN: Version = Version::new(0, 8, 24);
 
 static ANDROID_AARCH64_URL_PREFIX: &str =
-    "https://raw.githubusercontent.com/alloy-rs/solc-builds/5a404a4839fdde4a6093aee1b3d75a8dce38f40f/android/aarch64";
+    "https://raw.githubusercontent.com/alloy-rs/solc-builds/ac6f303a04b38e7ec507ced511fd3ed7a605179f/android/aarch64";
 
 static ANDROID_AARCH64_RELEASES_URL: &str =
-    "https://raw.githubusercontent.com/alloy-rs/solc-builds/5a404a4839fdde4a6093aee1b3d75a8dce38f40f/android/aarch64/list.json";
+    "https://raw.githubusercontent.com/alloy-rs/solc-builds/ac6f303a04b38e7ec507ced511fd3ed7a605179f/android/aarch64/list.json";
 
 /// Defines the struct that the JSON-formatted release list can be deserialized into.
 ///
