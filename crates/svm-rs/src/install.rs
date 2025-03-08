@@ -57,7 +57,12 @@ pub fn blocking_install(version: &Version) -> Result<PathBuf, SvmError> {
     // same version of solc.
     let _lock = try_lock_file(lock_path)?;
 
-    do_install(version, &binbytes, artifact.to_string().as_str())
+    do_install_and_retry(
+        version,
+        &binbytes,
+        artifact.to_string().as_str(),
+        &expected_checksum,
+    )
 }
 
 /// Installs the provided version of Solc in the machine.
@@ -98,7 +103,54 @@ pub async fn install(version: &Version) -> Result<PathBuf, SvmError> {
     // same version of solc.
     let _lock = try_lock_file(lock_path)?;
 
-    do_install(version, &binbytes, artifact.to_string().as_str())
+    do_install_and_retry(
+        version,
+        &binbytes,
+        artifact.to_string().as_str(),
+        &expected_checksum,
+    )
+}
+
+/// Same as [`do_install`] but retries "text file busy" errors.
+fn do_install_and_retry(
+    version: &Version,
+    binbytes: &[u8],
+    artifact: &str,
+    expected_checksum: &[u8],
+) -> Result<PathBuf, SvmError> {
+    let mut retries = 0;
+
+    loop {
+        return match do_install(version, binbytes, artifact) {
+            Ok(path) => Ok(path),
+            Err(err) => {
+                // installation failed
+                if retries > 2 {
+                    return Err(err);
+                }
+                retries += 1;
+                // check if this failed due to a text file busy, which indicates that a different process started using the target file
+                if err.to_string().to_lowercase().contains("text file busy") {
+                    // busy solc can be in use for a while (e.g. if compiling a large project), so we check if the file exists and has the correct checksum
+                    let solc_path = version_binary(&version.to_string());
+                    if solc_path.exists() {
+                        if let Ok(content) = fs::read(&solc_path) {
+                            if ensure_checksum(&content, version, expected_checksum).is_ok() {
+                                // checksum of the existing file matches the expected release checksum
+                                return Ok(solc_path);
+                            }
+                        }
+                    }
+
+                    // retry after some time
+                    std::thread::sleep(Duration::from_millis(250));
+                    continue;
+                }
+
+                Err(err)
+            }
+        };
+    }
 }
 
 fn do_install(version: &Version, binbytes: &[u8], _artifact: &str) -> Result<PathBuf, SvmError> {
