@@ -64,7 +64,8 @@ mod tests {
         assert_eq!(
             args,
             InstallCmd {
-                versions: vec!["0.8.11".into(), "0.8.10".into()]
+                versions: vec!["0.8.11".into(), "0.8.10".into()],
+                headless: false,
             }
         );
     }
