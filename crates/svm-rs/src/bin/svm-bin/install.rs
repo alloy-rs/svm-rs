@@ -8,6 +8,10 @@ use semver::Version;
 pub struct InstallCmd {
     /// Solc versions to install.
     pub versions: Vec<String>,
+
+    /// Run in non interactive mode without prompting for user input.
+    #[arg(long, default_value_t = false)]
+    pub non_interactive: bool,
 }
 
 impl InstallCmd {
@@ -21,6 +25,9 @@ impl InstallCmd {
 
             if installed_versions.contains(&version) {
                 println!("Solc {version} is already installed");
+                if self.non_interactive {
+                    continue;
+                }
                 let input: String = Input::new()
                     .with_prompt("Would you like to set it as the global version?")
                     .with_initial_text("Y")
@@ -57,7 +64,8 @@ mod tests {
         assert_eq!(
             args,
             InstallCmd {
-                versions: vec!["0.8.11".into(), "0.8.10".into()]
+                versions: vec!["0.8.11".into(), "0.8.10".into()],
+                non_interactive: false,
             }
         );
     }
