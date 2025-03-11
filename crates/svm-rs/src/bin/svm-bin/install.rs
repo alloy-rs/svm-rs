@@ -9,9 +9,9 @@ pub struct InstallCmd {
     /// Solc versions to install.
     pub versions: Vec<String>,
 
-    /// Run in headless mode without prompting for user input.
+    /// Run in non interactive mode without prompting for user input.
     #[arg(long, default_value_t = false)]
-    pub headless: bool,
+    pub non_interactive: bool,
 }
 
 impl InstallCmd {
@@ -25,7 +25,7 @@ impl InstallCmd {
 
             if installed_versions.contains(&version) {
                 println!("Solc {version} is already installed");
-                if self.headless {
+                if self.non_interactive {
                     continue;
                 }
                 let input: String = Input::new()
@@ -65,7 +65,7 @@ mod tests {
             args,
             InstallCmd {
                 versions: vec!["0.8.11".into(), "0.8.10".into()],
-                headless: false,
+                non_interactive: false,
             }
         );
     }
