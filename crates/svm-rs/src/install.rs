@@ -300,7 +300,7 @@ mod tests {
     use rand::seq::SliceRandom;
 
     #[allow(unused)]
-    const LATEST: Version = Version::new(0, 8, 28);
+    const LATEST: Version = Version::new(0, 8, 29);
 
     #[tokio::test]
     #[serial_test::serial]
