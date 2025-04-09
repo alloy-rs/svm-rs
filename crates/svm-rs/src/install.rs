@@ -22,6 +22,10 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(600);
 /// Version beyond which solc binaries are not fully static, hence need to be patched for NixOS.
 const NIXOS_MIN_PATCH_VERSION: Version = Version::new(0, 7, 6);
 
+/// Version beyond which solc binaries are fully static again, hence no patching is needed for NixOS.
+/// See <https://github.com/ethereum/solidity/releases/tag/v0.8.29>
+const NIXOS_MAX_PATCH_VERSION: Version = Version::new(0, 8, 28);
+
 /// Blocking version of [`install`]
 #[cfg(feature = "blocking")]
 pub fn blocking_install(version: &Version) -> Result<PathBuf, SvmError> {
@@ -219,7 +223,10 @@ impl Installer<'_> {
         f.set_permissions(Permissions::from_mode(0o755))?;
         f.write_all(self.binbytes)?;
 
-        if platform::is_nixos() && *self.version >= NIXOS_MIN_PATCH_VERSION {
+        if platform::is_nixos()
+            && *self.version >= NIXOS_MIN_PATCH_VERSION
+            && *self.version <= NIXOS_MAX_PATCH_VERSION
+        {
             patch_for_nixos(&temp_path)?;
         }
 
