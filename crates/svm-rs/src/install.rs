@@ -304,7 +304,7 @@ fn ensure_checksum(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::seq::SliceRandom;
+    use rand::seq::IndexedRandom;
 
     #[allow(unused)]
     const LATEST: Version = Version::new(0, 8, 29);
@@ -318,7 +318,7 @@ mod tests {
             .releases
             .into_keys()
             .collect::<Vec<Version>>();
-        let rand_version = versions.choose(&mut rand::thread_rng()).unwrap();
+        let rand_version = versions.choose(&mut rand::rng()).unwrap();
         assert!(install(rand_version).await.is_ok());
     }
 
@@ -356,7 +356,7 @@ mod tests {
         let versions = crate::releases::blocking_all_releases(platform::platform())
             .unwrap()
             .into_versions();
-        let rand_version = versions.choose(&mut rand::thread_rng()).unwrap();
+        let rand_version = versions.choose(&mut rand::rng()).unwrap();
         assert!(blocking_install(rand_version).is_ok());
     }
 

@@ -34,7 +34,7 @@ vergen = { version = "8", optional = true, features = [
 ] }
 
 [dependencies]
-fs4 = "0.12"
+fs4 = "0.13"
 hex.workspace = true
 dirs = "6.0"
 reqwest = { workspace = true, default-features = false, features = ["json"] }
@@ -62,7 +62,7 @@ tokio = { version = "1", features = [
 zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [dev-dependencies]
-rand = "0.8"
+rand = "0.9"
 tempfile = "3.10"
 tokio = { version = "1.36", features = ["rt-multi-thread", "macros"] }
 serial_test = "3.0"
