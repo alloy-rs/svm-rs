@@ -19,13 +19,11 @@ svm = { workspace = true, default-features = false, features = [
     "rustls",
 ] }
 
-build_const = "0.2"
 hex.workspace = true
 semver = { workspace = true, features = ["serde"] }
 serde_json.workspace = true
 
 [dependencies]
-build_const = "0.2"
 hex.workspace = true
 semver = { workspace = true, features = ["serde"] }
 
