@@ -307,7 +307,7 @@ mod tests {
     use rand::seq::IndexedRandom;
 
     #[allow(unused)]
-    const LATEST: Version = Version::new(0, 8, 29);
+    const LATEST: Version = Version::new(0, 8, 30);
 
     #[tokio::test]
     #[serial_test::serial]
