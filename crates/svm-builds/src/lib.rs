@@ -1,3 +1,3 @@
 //! Contains all Solc builds for the platform it was compiled with.
 
-build_const::build_const!("builds");
+include!(concat!(env!("OUT_DIR"), "/generated.rs"));
