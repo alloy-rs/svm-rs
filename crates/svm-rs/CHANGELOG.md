@@ -5,11 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.17](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.17) - 2025-08-12
+## [0.5.18](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.18) - 2025-08-12
+
+### Dependencies
+
+- Bump to edition 2024 ([#167](https://github.com/alloy-rs/svm-rs/issues/167))
+- Bump to Rust 1.89 ([#166](https://github.com/alloy-rs/svm-rs/issues/166))
 
 ### Features
 
 - Make svm list work offline ([#164](https://github.com/alloy-rs/svm-rs/issues/164))
+
+### Miscellaneous Tasks
+
+- [meta] Add CHANGELOG.md generation ([#165](https://github.com/alloy-rs/svm-rs/issues/165))
 
 ## [0.5.17](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.17) - 2025-07-23
 

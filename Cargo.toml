@@ -3,7 +3,7 @@ members = ["crates/svm-builds", "crates/svm-rs"]
 resolver = "2"
 
 [workspace.package]
-version = "0.5.17"
+version = "0.5.18"
 edition = "2024"
 rust-version = "1.89"
 authors = [
@@ -38,7 +38,7 @@ unnameable-types = "warn"
 all = "warn"
 
 [workspace.dependencies]
-svm = { package = "svm-rs", version = "0.5.17", path = "crates/svm-rs", default-features = false }
+svm = { package = "svm-rs", version = "0.5.18", path = "crates/svm-rs", default-features = false }
 
 hex = { package = "const-hex", version = "1.10" }
 semver = "1"
