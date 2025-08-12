@@ -31,17 +31,16 @@ impl RemoveCmd {
                     .interact_text()?;
                 if matches!(input.as_str(), "y" | "Y" | "yes" | "Yes") {
                     svm::remove_version(&version)?;
-                    if let Some(v) = current_version {
-                        if version == v {
-                            if let Some(i) = installed_versions.iter().position(|x| *x == v) {
-                                installed_versions.remove(i);
-                                if let Some(new_version) = installed_versions.pop() {
-                                    svm::set_global_version(&new_version)?;
-                                    print::set_global_version(&new_version);
-                                } else {
-                                    svm::unset_global_version()?;
-                                }
-                            }
+                    if let Some(v) = current_version
+                        && version == v
+                        && let Some(i) = installed_versions.iter().position(|x| *x == v)
+                    {
+                        installed_versions.remove(i);
+                        if let Some(new_version) = installed_versions.pop() {
+                            svm::set_global_version(&new_version)?;
+                            print::set_global_version(&new_version);
+                        } else {
+                            svm::unset_global_version()?;
                         }
                     }
                 }

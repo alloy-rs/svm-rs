@@ -30,30 +30,24 @@ static OLD_SOLC_RELEASES: LazyLock<Releases> = LazyLock::new(|| {
 
 const LINUX_AARCH64_MIN: Version = Version::new(0, 5, 0);
 
-static LINUX_AARCH64_URL_PREFIX: &str =
-    "https://raw.githubusercontent.com/nikitastupin/solc/0045084c85d8c159de03442a37d2018d52374445/linux/aarch64";
+static LINUX_AARCH64_URL_PREFIX: &str = "https://raw.githubusercontent.com/nikitastupin/solc/0045084c85d8c159de03442a37d2018d52374445/linux/aarch64";
 
-static LINUX_AARCH64_RELEASES_URL: &str =
-    "https://raw.githubusercontent.com/nikitastupin/solc/0045084c85d8c159de03442a37d2018d52374445/linux/aarch64/list.json";
+static LINUX_AARCH64_RELEASES_URL: &str = "https://raw.githubusercontent.com/nikitastupin/solc/0045084c85d8c159de03442a37d2018d52374445/linux/aarch64/list.json";
 
 // NOTE: Since version 0.8.24, universal macosx releases are available: https://binaries.soliditylang.org/macosx-amd64/list.json
 const MACOS_AARCH64_NATIVE: Version = Version::new(0, 8, 5);
 
 const UNIVERSAL_MACOS_BINARIES: Version = Version::new(0, 8, 24);
 
-static MACOS_AARCH64_URL_PREFIX: &str =
-    "https://raw.githubusercontent.com/alloy-rs/solc-builds/e4b80d33bc4d015b2fc3583e217fbf248b2014e1/macosx/aarch64";
+static MACOS_AARCH64_URL_PREFIX: &str = "https://raw.githubusercontent.com/alloy-rs/solc-builds/e4b80d33bc4d015b2fc3583e217fbf248b2014e1/macosx/aarch64";
 
-static MACOS_AARCH64_RELEASES_URL: &str =
-    "https://raw.githubusercontent.com/alloy-rs/solc-builds/e4b80d33bc4d015b2fc3583e217fbf248b2014e1/macosx/aarch64/list.json";
+static MACOS_AARCH64_RELEASES_URL: &str = "https://raw.githubusercontent.com/alloy-rs/solc-builds/e4b80d33bc4d015b2fc3583e217fbf248b2014e1/macosx/aarch64/list.json";
 
 const ANDROID_AARCH64_MIN: Version = Version::new(0, 8, 24);
 
-static ANDROID_AARCH64_URL_PREFIX: &str =
-    "https://raw.githubusercontent.com/alloy-rs/solc-builds/ac6f303a04b38e7ec507ced511fd3ed7a605179f/android/aarch64";
+static ANDROID_AARCH64_URL_PREFIX: &str = "https://raw.githubusercontent.com/alloy-rs/solc-builds/ac6f303a04b38e7ec507ced511fd3ed7a605179f/android/aarch64";
 
-static ANDROID_AARCH64_RELEASES_URL: &str =
-    "https://raw.githubusercontent.com/alloy-rs/solc-builds/ac6f303a04b38e7ec507ced511fd3ed7a605179f/android/aarch64/list.json";
+static ANDROID_AARCH64_RELEASES_URL: &str = "https://raw.githubusercontent.com/alloy-rs/solc-builds/ac6f303a04b38e7ec507ced511fd3ed7a605179f/android/aarch64/list.json";
 
 /// Defines the struct that the JSON-formatted release list can be deserialized into.
 ///
@@ -115,7 +109,7 @@ pub struct BuildInfo {
 /// Helper serde module to serialize and deserialize bytes as hex.
 mod hex_string {
     use super::*;
-    use serde::{de, Deserializer, Serializer};
+    use serde::{Deserializer, Serializer, de};
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
     where

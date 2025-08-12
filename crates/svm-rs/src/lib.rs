@@ -26,10 +26,10 @@ mod paths;
 pub use paths::{data_dir, global_version_path, setup_data_dir, version_binary, version_path};
 
 mod platform;
-pub use platform::{platform, Platform};
+pub use platform::{Platform, platform};
 
 mod releases;
-pub use releases::{all_releases, BuildInfo, Releases};
+pub use releases::{BuildInfo, Releases, all_releases};
 
 #[cfg(feature = "blocking")]
 pub use releases::blocking_all_releases;
