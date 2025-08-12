@@ -29,10 +29,11 @@ Usage: svm <COMMAND>
 
 Commands:
   help     Print this message or the help of the given subcommand(s)
-  install  Install Solc versions
-  list     List all Solc versions
-  remove   Remove a Solc version, or "all" to remove all versions
+  install  Install Solc versions [aliases: i]
+  list     List all Solc versions [aliases: ls]
+  remove   Remove a Solc version, or "all" to remove all versions [aliases: rm]
   use      Set a Solc version as the global default
+  which    Display which binary will be run for a given version
 
 Options:
   -h, --help     Print help
