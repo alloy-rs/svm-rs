@@ -1,6 +1,6 @@
 use crate::{
-    all_releases, data_dir, platform, releases::artifact_url, setup_data_dir, setup_version,
-    version_binary, SvmError,
+    SvmError, all_releases, data_dir, platform, releases::artifact_url, setup_data_dir,
+    setup_version, version_binary,
 };
 use semver::Version;
 use sha2::Digest;
@@ -137,13 +137,12 @@ fn do_install_and_retry(
                 if err.to_string().to_lowercase().contains("text file busy") {
                     // busy solc can be in use for a while (e.g. if compiling a large project), so we check if the file exists and has the correct checksum
                     let solc_path = version_binary(&version.to_string());
-                    if solc_path.exists() {
-                        if let Ok(content) = fs::read(&solc_path) {
-                            if ensure_checksum(&content, version, expected_checksum).is_ok() {
-                                // checksum of the existing file matches the expected release checksum
-                                return Ok(solc_path);
-                            }
-                        }
+                    if solc_path.exists()
+                        && let Ok(content) = fs::read(&solc_path)
+                        && ensure_checksum(&content, version, expected_checksum).is_ok()
+                    {
+                        // checksum of the existing file matches the expected release checksum
+                        return Ok(solc_path);
                     }
 
                     // retry after some time
@@ -366,9 +365,11 @@ mod tests {
         install(&version).await.unwrap();
         let solc_path = version_binary(version.to_string().as_str());
         let output = Command::new(solc_path).arg("--version").output().unwrap();
-        assert!(String::from_utf8_lossy(&output.stdout)
-            .as_ref()
-            .contains("0.8.10"));
+        assert!(
+            String::from_utf8_lossy(&output.stdout)
+                .as_ref()
+                .contains("0.8.10")
+        );
     }
 
     #[cfg(feature = "blocking")]
@@ -379,9 +380,11 @@ mod tests {
         let solc_path = version_binary(LATEST.to_string().as_str());
         let output = Command::new(solc_path).arg("--version").output().unwrap();
 
-        assert!(String::from_utf8_lossy(&output.stdout)
-            .as_ref()
-            .contains(&LATEST.to_string()));
+        assert!(
+            String::from_utf8_lossy(&output.stdout)
+                .as_ref()
+                .contains(&LATEST.to_string())
+        );
     }
 
     #[cfg(feature = "blocking")]
@@ -393,9 +396,11 @@ mod tests {
         let solc_path = version_binary(version.to_string().as_str());
         let output = Command::new(solc_path).arg("--version").output().unwrap();
 
-        assert!(String::from_utf8_lossy(&output.stdout)
-            .as_ref()
-            .contains("0.8.10"));
+        assert!(
+            String::from_utf8_lossy(&output.stdout)
+                .as_ref()
+                .contains("0.8.10")
+        );
     }
 
     #[cfg(feature = "blocking")]
@@ -460,8 +465,10 @@ mod tests {
         let solc_path = version_binary(version.to_string().as_str());
         let output = Command::new(&solc_path).arg("--version").output().unwrap();
 
-        assert!(String::from_utf8_lossy(&output.stdout)
-            .as_ref()
-            .contains("0.7.1"));
+        assert!(
+            String::from_utf8_lossy(&output.stdout)
+                .as_ref()
+                .contains("0.7.1")
+        );
     }
 }
