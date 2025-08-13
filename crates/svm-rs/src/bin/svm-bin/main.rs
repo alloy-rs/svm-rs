@@ -26,10 +26,13 @@ mod which;
     next_display_order = None,
 )]
 enum Svm {
+    #[command(visible_alias = "ls")]
     List(list::ListCmd),
+    #[command(visible_alias = "i")]
     Install(install::InstallCmd),
     Use(r#use::UseCmd),
     Which(which::WhichCmd),
+    #[command(visible_alias = "rm")]
     Remove(remove::RemoveCmd),
 }
 
