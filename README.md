@@ -8,6 +8,12 @@ This crate provides a cross-platform support for managing Solidity compiler vers
 
 ## Install
 
+With [cargo-binstall](https://github.com/cargo-bins/cargo-binstall):
+
+```sh
+cargo binstall svm-rs
+```
+
 From [crates.io](https://crates.io):
 
 ```sh
