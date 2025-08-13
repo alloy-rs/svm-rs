@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous Tasks
 
+- Release 0.5.18
 - [meta] Add CHANGELOG.md generation ([#165](https://github.com/alloy-rs/svm-rs/issues/165))
 
 ## [0.5.16](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.16) - 2025-05-07
