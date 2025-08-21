@@ -1,4 +1,5 @@
 use reqwest::StatusCode;
+use semver::Version;
 use thiserror::Error;
 use url::Url;
 
@@ -7,8 +8,8 @@ use url::Url;
 pub enum SvmError {
     #[error("SVM global version not set")]
     GlobalVersionNotSet,
-    #[error("Unknown version provided")]
-    UnknownVersion,
+    #[error("version not found in artifacts for this platform: {0}")]
+    UnknownVersion(Version),
     #[error("Unsupported version {0} for platform {1}")]
     UnsupportedVersion(String, String),
     #[error("Version {0} not installed")]
