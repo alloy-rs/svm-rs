@@ -34,7 +34,7 @@ pub fn blocking_install(version: &Version) -> Result<PathBuf, SvmError> {
     let artifacts = crate::blocking_all_releases(platform::platform())?;
     let artifact = artifacts
         .get_artifact(version)
-        .ok_or(SvmError::UnknownVersion)?;
+        .ok_or_else(|| SvmError::UnknownVersion(version.clone()))?;
     let download_url = artifact_url(platform::platform(), version, artifact.to_string().as_str())?;
 
     let expected_checksum = artifacts
@@ -79,7 +79,7 @@ pub async fn install(version: &Version) -> Result<PathBuf, SvmError> {
     let artifact = artifacts
         .releases
         .get(version)
-        .ok_or(SvmError::UnknownVersion)?;
+        .ok_or_else(|| SvmError::UnknownVersion(version.clone()))?;
     let download_url = artifact_url(platform::platform(), version, artifact.to_string().as_str())?;
 
     let expected_checksum = artifacts
