@@ -57,7 +57,7 @@ tokio = { version = "1", features = [
     "macros",
 ], optional = true }
 
-[target.'cfg(all(target_os = "windows", target_arch = "x86_64"))'.dependencies]
+[target.'cfg(target_os = "windows")'.dependencies]
 zip = { version = "4", default-features = false, features = ["deflate"] }
 
 [dev-dependencies]

@@ -161,7 +161,7 @@ fn do_install(version: &Version, binbytes: &[u8], _artifact: &str) -> Result<Pat
     let installer = Installer { version, binbytes };
 
     // Solc versions <= 0.7.1 are .zip files for Windows only
-    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    #[cfg(target_os = "windows")]
     if _artifact.ends_with(".zip") {
         return installer.install_zip();
     }
@@ -243,7 +243,7 @@ impl Installer<'_> {
 
     /// Extracts the solc archive at the version specified destination and returns the path to the
     /// installed solc binary.
-    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    #[cfg(target_os = "windows")]
     fn install_zip(self) -> Result<PathBuf, SvmError> {
         let solc_path = version_binary(&self.version.to_string());
         let version_path = solc_path.parent().unwrap();
@@ -328,17 +328,33 @@ mod tests {
         } else {
             "which"
         };
+        // Long-running command: `sleep infinity` on Unix, `timeout /t 3600` on Windows
+        const CMD: &str = if cfg!(target_os = "windows") {
+            "timeout"
+        } else {
+            "sleep"
+        };
 
         let version: Version = "0.8.10".parse().unwrap();
         let solc_path = version_binary(version.to_string().as_str());
 
         fs::create_dir_all(solc_path.parent().unwrap()).unwrap();
 
-        // Overwrite solc with `sleep` and call it with `infinity`.
-        let stdout = Command::new(WHICH).arg("sleep").output().unwrap().stdout;
-        let sleep_path = String::from_utf8(stdout).unwrap();
-        fs::copy(sleep_path.trim_end(), &solc_path).unwrap();
-        let mut child = Command::new(solc_path).arg("infinity").spawn().unwrap();
+        // Overwrite solc with a long-running command.
+        let stdout = Command::new(WHICH).arg(CMD).output().unwrap().stdout;
+        let cmd_path = String::from_utf8(stdout).unwrap();
+        // On Windows, `where` can return multiple paths - take the first one
+        let cmd_path = cmd_path.lines().next().unwrap_or(&cmd_path);
+        fs::copy(cmd_path.trim_end(), &solc_path).unwrap();
+
+        let mut child = if cfg!(target_os = "windows") {
+            Command::new(&solc_path)
+                .args(["/t", "3600"])
+                .spawn()
+                .unwrap()
+        } else {
+            Command::new(&solc_path).arg("infinity").spawn().unwrap()
+        };
 
         // Install should not fail with "text file busy".
         install(&version).await.unwrap();
@@ -458,7 +474,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    #[cfg(target_os = "windows")]
     async fn can_install_windows_zip_release() {
         let version = "0.7.1".parse().unwrap();
         install(&version).await.unwrap();

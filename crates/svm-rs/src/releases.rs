@@ -166,6 +166,16 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SvmError> {
         Platform::AndroidAarch64 => {
             Ok(reqwest::blocking::get(ANDROID_AARCH64_RELEASES_URL)?.json::<Releases>()?)
         }
+        Platform::WindowsAarch64 => {
+            // Windows ARM64 uses x64 binaries via emulation
+            // Solidity does not provide native ARM64 Windows binaries
+            let releases = reqwest::blocking::get(format!(
+                "{SOLC_RELEASES_URL}/{}/list.json",
+                Platform::WindowsAmd64
+            ))?
+            .json::<Releases>()?;
+            Ok(unified_releases(releases, platform))
+        }
         _ => {
             let releases =
                 reqwest::blocking::get(format!("{SOLC_RELEASES_URL}/{platform}/list.json"))?
@@ -217,6 +227,19 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SvmError> {
             .await?
             .json::<Releases>()
             .await?),
+        Platform::WindowsAarch64 => {
+            // Windows ARM64 uses x64 binaries via emulation
+            // Solidity does not provide native ARM64 Windows binaries
+            let releases = get(format!(
+                "{SOLC_RELEASES_URL}/{}/list.json",
+                Platform::WindowsAmd64
+            ))
+            .await?
+            .json::<Releases>()
+            .await?;
+
+            Ok(unified_releases(releases, platform))
+        }
         _ => {
             let releases = get(format!("{SOLC_RELEASES_URL}/{platform}/list.json"))
                 .await?
@@ -305,6 +328,15 @@ pub(crate) fn artifact_url(
         }
     }
 
+    if platform == Platform::WindowsAarch64 {
+        // Windows ARM64 uses x64 binaries via emulation
+        // Solidity does not provide native ARM64 Windows binaries
+        return Ok(Url::parse(&format!(
+            "{SOLC_RELEASES_URL}/{}/{artifact}",
+            Platform::WindowsAmd64,
+        ))?);
+    }
+
     Ok(Url::parse(&format!(
         "{SOLC_RELEASES_URL}/{platform}/{artifact}"
     ))?)
@@ -374,6 +406,18 @@ mod tests {
     #[tokio::test]
     async fn test_all_releases_linux_aarch64() {
         assert!(all_releases(Platform::LinuxAarch64).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_all_releases_windows_aarch64() {
+        let releases = all_releases(Platform::WindowsAarch64).await;
+        assert!(releases.is_ok());
+        // Check also that we got the windows-amd64 release
+        let releases = releases.unwrap();
+        let latest = releases.releases.keys().max().unwrap();
+        let artifact = releases.get_artifact(latest).unwrap();
+        let url = artifact_url(Platform::WindowsAarch64, latest, artifact).unwrap();
+        assert!(url.to_string().contains("windows-amd64"));
     }
 
     #[tokio::test]
