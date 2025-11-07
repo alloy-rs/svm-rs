@@ -36,7 +36,10 @@ pub enum SvmError {
     UrlError(#[from] url::ParseError),
     #[error("Received unsuccessful response with code {1} for {0}")]
     UnsuccessfulResponse(Url, StatusCode),
-    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    #[cfg(all(
+        target_os = "windows",
+        any(target_arch = "x86_64", target_arch = "aarch64")
+    ))]
     #[error(transparent)]
     ZipError(#[from] zip::result::ZipError),
 }
