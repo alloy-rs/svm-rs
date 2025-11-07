@@ -161,10 +161,7 @@ fn do_install(version: &Version, binbytes: &[u8], _artifact: &str) -> Result<Pat
     let installer = Installer { version, binbytes };
 
     // Solc versions <= 0.7.1 are .zip files for Windows only
-    #[cfg(all(
-        target_os = "windows",
-        any(target_arch = "x86_64", target_arch = "aarch64")
-    ))]
+    #[cfg(target_os = "windows")]
     if _artifact.ends_with(".zip") {
         return installer.install_zip();
     }
@@ -246,10 +243,7 @@ impl Installer<'_> {
 
     /// Extracts the solc archive at the version specified destination and returns the path to the
     /// installed solc binary.
-    #[cfg(all(
-        target_os = "windows",
-        any(target_arch = "x86_64", target_arch = "aarch64")
-    ))]
+    #[cfg(target_os = "windows")]
     fn install_zip(self) -> Result<PathBuf, SvmError> {
         let solc_path = version_binary(&self.version.to_string());
         let version_path = solc_path.parent().unwrap();
@@ -480,10 +474,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(all(
-        target_os = "windows",
-        any(target_arch = "x86_64", target_arch = "aarch64")
-    ))]
+    #[cfg(target_os = "windows")]
     async fn can_install_windows_zip_release() {
         let version = "0.7.1".parse().unwrap();
         install(&version).await.unwrap();
