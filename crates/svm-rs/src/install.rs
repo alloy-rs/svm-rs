@@ -498,8 +498,10 @@ mod tests {
         let solc_path = version_binary(version.to_string().as_str());
         let output = Command::new(solc_path).arg("--version").output().unwrap();
 
-        assert!(String::from_utf8_lossy(&output.stdout)
-            .as_ref()
-            .contains(&version.to_string()));
+        assert!(
+            String::from_utf8_lossy(&output.stdout)
+                .as_ref()
+                .contains(&version.to_string())
+        );
     }
 }

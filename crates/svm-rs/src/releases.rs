@@ -30,11 +30,9 @@ static OLD_SOLC_RELEASES: LazyLock<Releases> = LazyLock::new(|| {
 
 const LINUX_AARCH64_MIN: Version = Version::new(0, 5, 0);
 
-static LINUX_AARCH64_URL_PREFIX: &str =
-    "https://raw.githubusercontent.com/nikitastupin/solc/2287d4326237172acf91ce42fd7ec18a67b7f512/linux/aarch64";
+static LINUX_AARCH64_URL_PREFIX: &str = "https://raw.githubusercontent.com/nikitastupin/solc/2287d4326237172acf91ce42fd7ec18a67b7f512/linux/aarch64";
 
-static LINUX_AARCH64_RELEASES_URL: &str =
-    "https://raw.githubusercontent.com/nikitastupin/solc/2287d4326237172acf91ce42fd7ec18a67b7f512/linux/aarch64/list.json";
+static LINUX_AARCH64_RELEASES_URL: &str = "https://raw.githubusercontent.com/nikitastupin/solc/2287d4326237172acf91ce42fd7ec18a67b7f512/linux/aarch64/list.json";
 
 // NOTE: Since version 0.8.24, universal macosx releases are available: https://binaries.soliditylang.org/macosx-amd64/list.json
 const MACOS_AARCH64_NATIVE: Version = Version::new(0, 8, 5);
