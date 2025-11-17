@@ -1,6 +1,6 @@
 use crate::{
-    all_releases, data_dir, platform, releases::artifact_url, setup_data_dir, setup_version,
-    version_binary, SvmError,
+    SvmError, all_releases, data_dir, platform, releases::artifact_url, setup_data_dir,
+    setup_version, version_binary,
 };
 use semver::Version;
 use sha2::Digest;
@@ -22,6 +22,10 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(600);
 /// Version beyond which solc binaries are not fully static, hence need to be patched for NixOS.
 const NIXOS_MIN_PATCH_VERSION: Version = Version::new(0, 7, 6);
 
+/// Version beyond which solc binaries are fully static again, hence no patching is needed for NixOS.
+/// See <https://github.com/ethereum/solidity/releases/tag/v0.8.29>
+const NIXOS_MAX_PATCH_VERSION: Version = Version::new(0, 8, 28);
+
 /// Blocking version of [`install`]
 #[cfg(feature = "blocking")]
 pub fn blocking_install(version: &Version) -> Result<PathBuf, SvmError> {
@@ -30,7 +34,7 @@ pub fn blocking_install(version: &Version) -> Result<PathBuf, SvmError> {
     let artifacts = crate::blocking_all_releases(platform::platform())?;
     let artifact = artifacts
         .get_artifact(version)
-        .ok_or(SvmError::UnknownVersion)?;
+        .ok_or_else(|| SvmError::UnknownVersion(version.clone()))?;
     let download_url = artifact_url(platform::platform(), version, artifact.to_string().as_str())?;
 
     let expected_checksum = artifacts
@@ -75,7 +79,7 @@ pub async fn install(version: &Version) -> Result<PathBuf, SvmError> {
     let artifact = artifacts
         .releases
         .get(version)
-        .ok_or(SvmError::UnknownVersion)?;
+        .ok_or_else(|| SvmError::UnknownVersion(version.clone()))?;
     let download_url = artifact_url(platform::platform(), version, artifact.to_string().as_str())?;
 
     let expected_checksum = artifacts
@@ -133,13 +137,12 @@ fn do_install_and_retry(
                 if err.to_string().to_lowercase().contains("text file busy") {
                     // busy solc can be in use for a while (e.g. if compiling a large project), so we check if the file exists and has the correct checksum
                     let solc_path = version_binary(&version.to_string());
-                    if solc_path.exists() {
-                        if let Ok(content) = fs::read(&solc_path) {
-                            if ensure_checksum(&content, version, expected_checksum).is_ok() {
-                                // checksum of the existing file matches the expected release checksum
-                                return Ok(solc_path);
-                            }
-                        }
+                    if solc_path.exists()
+                        && let Ok(content) = fs::read(&solc_path)
+                        && ensure_checksum(&content, version, expected_checksum).is_ok()
+                    {
+                        // checksum of the existing file matches the expected release checksum
+                        return Ok(solc_path);
                     }
 
                     // retry after some time
@@ -158,7 +161,7 @@ fn do_install(version: &Version, binbytes: &[u8], _artifact: &str) -> Result<Pat
     let installer = Installer { version, binbytes };
 
     // Solc versions <= 0.7.1 are .zip files for Windows only
-    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    #[cfg(target_os = "windows")]
     if _artifact.ends_with(".zip") {
         return installer.install_zip();
     }
@@ -166,16 +169,15 @@ fn do_install(version: &Version, binbytes: &[u8], _artifact: &str) -> Result<Pat
     installer.install()
 }
 
-/// Creates the file and locks it exclusively, this will block if the file is currently locked
+/// Creates the file and locks it exclusively, this will block if the file is currently locked.
 fn try_lock_file(lock_path: PathBuf) -> Result<LockFile, SvmError> {
-    use fs4::fs_std::FileExt;
     let _lock_file = fs::OpenOptions::new()
         .create(true)
         .truncate(true)
         .read(true)
         .write(true)
         .open(&lock_path)?;
-    _lock_file.lock_exclusive()?;
+    _lock_file.lock()?;
     Ok(LockFile {
         lock_path,
         _lock_file,
@@ -219,7 +221,10 @@ impl Installer<'_> {
         f.set_permissions(Permissions::from_mode(0o755))?;
         f.write_all(self.binbytes)?;
 
-        if platform::is_nixos() && *self.version >= NIXOS_MIN_PATCH_VERSION {
+        if platform::is_nixos()
+            && *self.version >= NIXOS_MIN_PATCH_VERSION
+            && *self.version <= NIXOS_MAX_PATCH_VERSION
+        {
             patch_for_nixos(&temp_path)?;
         }
 
@@ -238,7 +243,7 @@ impl Installer<'_> {
 
     /// Extracts the solc archive at the version specified destination and returns the path to the
     /// installed solc binary.
-    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    #[cfg(target_os = "windows")]
     fn install_zip(self) -> Result<PathBuf, SvmError> {
         let solc_path = version_binary(&self.version.to_string());
         let version_path = solc_path.parent().unwrap();
@@ -297,10 +302,10 @@ fn ensure_checksum(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::seq::SliceRandom;
+    use rand::seq::IndexedRandom;
 
     #[allow(unused)]
-    const LATEST: Version = Version::new(0, 8, 29);
+    const LATEST: Version = Version::new(0, 8, 30);
 
     #[tokio::test]
     #[serial_test::serial]
@@ -311,7 +316,7 @@ mod tests {
             .releases
             .into_keys()
             .collect::<Vec<Version>>();
-        let rand_version = versions.choose(&mut rand::thread_rng()).unwrap();
+        let rand_version = versions.choose(&mut rand::rng()).unwrap();
         assert!(install(rand_version).await.is_ok());
     }
 
@@ -323,17 +328,33 @@ mod tests {
         } else {
             "which"
         };
+        // Long-running command: `sleep infinity` on Unix, `timeout /t 3600` on Windows
+        const CMD: &str = if cfg!(target_os = "windows") {
+            "timeout"
+        } else {
+            "sleep"
+        };
 
         let version: Version = "0.8.10".parse().unwrap();
         let solc_path = version_binary(version.to_string().as_str());
 
         fs::create_dir_all(solc_path.parent().unwrap()).unwrap();
 
-        // Overwrite solc with `sleep` and call it with `infinity`.
-        let stdout = Command::new(WHICH).arg("sleep").output().unwrap().stdout;
-        let sleep_path = String::from_utf8(stdout).unwrap();
-        fs::copy(sleep_path.trim_end(), &solc_path).unwrap();
-        let mut child = Command::new(solc_path).arg("infinity").spawn().unwrap();
+        // Overwrite solc with a long-running command.
+        let stdout = Command::new(WHICH).arg(CMD).output().unwrap().stdout;
+        let cmd_path = String::from_utf8(stdout).unwrap();
+        // On Windows, `where` can return multiple paths - take the first one
+        let cmd_path = cmd_path.lines().next().unwrap_or(&cmd_path);
+        fs::copy(cmd_path.trim_end(), &solc_path).unwrap();
+
+        let mut child = if cfg!(target_os = "windows") {
+            Command::new(&solc_path)
+                .args(["/t", "3600"])
+                .spawn()
+                .unwrap()
+        } else {
+            Command::new(&solc_path).arg("infinity").spawn().unwrap()
+        };
 
         // Install should not fail with "text file busy".
         install(&version).await.unwrap();
@@ -349,7 +370,7 @@ mod tests {
         let versions = crate::releases::blocking_all_releases(platform::platform())
             .unwrap()
             .into_versions();
-        let rand_version = versions.choose(&mut rand::thread_rng()).unwrap();
+        let rand_version = versions.choose(&mut rand::rng()).unwrap();
         assert!(blocking_install(rand_version).is_ok());
     }
 
@@ -360,9 +381,11 @@ mod tests {
         install(&version).await.unwrap();
         let solc_path = version_binary(version.to_string().as_str());
         let output = Command::new(solc_path).arg("--version").output().unwrap();
-        assert!(String::from_utf8_lossy(&output.stdout)
-            .as_ref()
-            .contains("0.8.10"));
+        assert!(
+            String::from_utf8_lossy(&output.stdout)
+                .as_ref()
+                .contains("0.8.10")
+        );
     }
 
     #[cfg(feature = "blocking")]
@@ -373,9 +396,11 @@ mod tests {
         let solc_path = version_binary(LATEST.to_string().as_str());
         let output = Command::new(solc_path).arg("--version").output().unwrap();
 
-        assert!(String::from_utf8_lossy(&output.stdout)
-            .as_ref()
-            .contains(&LATEST.to_string()));
+        assert!(
+            String::from_utf8_lossy(&output.stdout)
+                .as_ref()
+                .contains(&LATEST.to_string())
+        );
     }
 
     #[cfg(feature = "blocking")]
@@ -387,9 +412,11 @@ mod tests {
         let solc_path = version_binary(version.to_string().as_str());
         let output = Command::new(solc_path).arg("--version").output().unwrap();
 
-        assert!(String::from_utf8_lossy(&output.stdout)
-            .as_ref()
-            .contains("0.8.10"));
+        assert!(
+            String::from_utf8_lossy(&output.stdout)
+                .as_ref()
+                .contains("0.8.10")
+        );
     }
 
     #[cfg(feature = "blocking")]
@@ -447,16 +474,18 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    #[cfg(target_os = "windows")]
     async fn can_install_windows_zip_release() {
         let version = "0.7.1".parse().unwrap();
         install(&version).await.unwrap();
         let solc_path = version_binary(version.to_string().as_str());
         let output = Command::new(&solc_path).arg("--version").output().unwrap();
 
-        assert!(String::from_utf8_lossy(&output.stdout)
-            .as_ref()
-            .contains("0.7.1"));
+        assert!(
+            String::from_utf8_lossy(&output.stdout)
+                .as_ref()
+                .contains("0.7.1")
+        );
     }
 
     #[cfg(feature = "blocking")]

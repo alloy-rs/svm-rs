@@ -1,12 +1,18 @@
 # Solidity Compiler Version Manager
 
 [<img alt="crates.io" src="https://img.shields.io/crates/v/svm-rs.svg?style=for-the-badge&color=fc8d62&logo=rust" height="20">](https://crates.io/crates/svm-rs)
-[<img alt="docs.rs" src="https://img.shields.io/docsrs/svm-rs/latest?color=66c2a5&label=docs-rs&style=for-the-badge" height="20">](https://docs.rs/svm-rs/latest/svm_lib/)
+[<img alt="docs.rs" src="https://img.shields.io/docsrs/svm-rs/latest?color=66c2a5&label=docs-rs&style=for-the-badge" height="20">](https://docs.rs/svm-rs/latest/svm)
 [<img alt="build status" src="https://img.shields.io/github/actions/workflow/status/roynalnaruto/svm-rs/ci.yml?branch=master&style=for-the-badge" height="20">](https://github.com/roynalnaruto/svm-rs/actions?query=branch%3Amaster)
 
 This crate provides a cross-platform support for managing Solidity compiler versions.
 
 ## Install
+
+With [cargo-binstall](https://github.com/cargo-bins/cargo-binstall):
+
+```sh
+cargo binstall svm-rs
+```
 
 From [crates.io](https://crates.io):
 
@@ -29,10 +35,11 @@ Usage: svm <COMMAND>
 
 Commands:
   help     Print this message or the help of the given subcommand(s)
-  install  Install Solc versions
-  list     List all Solc versions
-  remove   Remove a Solc version, or "all" to remove all versions
+  install  Install Solc versions [aliases: i]
+  list     List all Solc versions [aliases: ls]
+  remove   Remove a Solc version, or "all" to remove all versions [aliases: rm]
   use      Set a Solc version as the global default
+  which    Display which binary will be run for a given version
 
 Options:
   -h, --help     Print help

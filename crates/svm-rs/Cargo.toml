@@ -34,7 +34,6 @@ vergen = { version = "8", optional = true, features = [
 ] }
 
 [dependencies]
-fs4 = "0.12"
 hex.workspace = true
 dirs = "6.0"
 reqwest = { workspace = true, default-features = false, features = ["json"] }
@@ -49,20 +48,20 @@ url = "2.5"
 # CLI
 anyhow = { version = "1.0", optional = true }
 clap = { version = "4", features = ["derive"], optional = true }
-console = { version = "0.15", default-features = false, optional = true }
+console = { version = "0.16", default-features = false, optional = true }
 dialoguer = { version = "0.11", default-features = false, optional = true }
-indicatif = { version = "0.17", default-features = false, optional = true }
+indicatif = { version = "0.18", default-features = false, optional = true }
 itertools = { version = "0.14", optional = true }
 tokio = { version = "1", features = [
     "rt-multi-thread",
     "macros",
 ], optional = true }
 
-[target.'cfg(all(target_os = "windows", target_arch = "x86_64"))'.dependencies]
-zip = { version = "2", default-features = false, features = ["deflate"] }
+[target.'cfg(target_os = "windows")'.dependencies]
+zip = { version = "4", default-features = false, features = ["deflate"] }
 
 [dev-dependencies]
-rand = "0.8"
+rand = "0.9"
 tempfile = "3.10"
 tokio = { version = "1.36", features = ["rt-multi-thread", "macros"] }
 serial_test = "3.0"

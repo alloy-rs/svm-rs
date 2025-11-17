@@ -6,7 +6,7 @@
 )]
 #![warn(rustdoc::all)]
 #![deny(unused_must_use, rust_2018_idioms)]
-#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 use clap::Parser;
 
@@ -26,10 +26,13 @@ mod which;
     next_display_order = None,
 )]
 enum Svm {
+    #[command(visible_alias = "ls")]
     List(list::ListCmd),
+    #[command(visible_alias = "i")]
     Install(install::InstallCmd),
     Use(r#use::UseCmd),
     Which(which::WhichCmd),
+    #[command(visible_alias = "rm")]
     Remove(remove::RemoveCmd),
 }
 

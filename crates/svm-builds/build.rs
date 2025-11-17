@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
-use std::fs::File;
+use std::fs::{self, File};
+use std::path::PathBuf;
 
 use semver::Version;
 use svm::Releases;
@@ -47,25 +48,23 @@ fn version_const_name(version: &Version) -> String {
 }
 
 /// Adds build info related constants
-fn add_build_info_constants(
-    writer: &mut build_const::ConstValueWriter,
-    releases: &Releases,
-    platform: svm::Platform,
-) {
+fn add_build_info_constants(output: &mut String, releases: &Releases, platform: svm::Platform) {
     let mut version_idents = Vec::with_capacity(releases.builds.len());
     let mut checksum_match_arms = Vec::with_capacity(releases.builds.len());
 
     for build in releases.builds.iter() {
-        let version_name = version_const_name(&build.version);
-
-        writer.add_value_raw(
-            &version_name,
-            "semver::Version",
-            &format!(
-                "semver::Version::new({},{},{})",
-                build.version.major, build.version.minor, build.version.patch
-            ),
+        let version = Version::new(
+            build.version.major,
+            build.version.minor,
+            build.version.patch,
         );
+        let version_name = version_const_name(&version);
+
+        output.push_str(&format!(
+            "/// Solidity compiler version `{version}`.\n\
+             pub const {version_name}: semver::Version = semver::Version::new({}, {}, {});\n\n",
+            version.major, version.minor, version.patch
+        ));
         version_idents.push(version_name);
 
         let sha256 = hex::encode(&build.sha256);
@@ -74,10 +73,13 @@ fn add_build_info_constants(
             build.version.major, build.version.minor, build.version.patch
         );
 
-        writer.add_value(&checksum_name, "&str", sha256);
+        output.push_str(&format!(
+            "/// Checksum for Solidity compiler version `{version}`.\n\
+             pub const {checksum_name}: &str = \"{sha256}\";\n\n",
+        ));
         checksum_match_arms.push(format!(
-            "({},{},{})  => {}",
-            build.version.major, build.version.minor, build.version.patch, checksum_name
+            "({}, {}, {}) => {}",
+            version.major, version.minor, version.patch, checksum_name
         ));
     }
 
@@ -85,13 +87,14 @@ fn add_build_info_constants(
         r#"
 /// All available releases for {}
 pub static ALL_SOLC_VERSIONS : [semver::Version; {}] = [
-    {}  ];
-    "#,
+    {}
+];
+"#,
         platform,
         version_idents.len(),
-        version_idents.join(",\n")
+        version_idents.join(",\n    ")
     );
-    writer.add_raw(&raw_static_array);
+    output.push_str(&raw_static_array);
 
     let get_check_sum_fn = format!(
         r#"
@@ -101,18 +104,18 @@ pub fn get_checksum(version: &semver::Version) -> Option<Vec<u8>> {{
         {},
         _ => return None
     }};
-    Some(hex::decode(checksum).expect("valid hex;"))
+    Some(hex::decode(checksum).unwrap())
 }}
-    "#,
-        checksum_match_arms.join(",\n")
+"#,
+        checksum_match_arms.join(",\n        ")
     );
 
-    writer.add_raw(&get_check_sum_fn);
+    output.push_str(&get_check_sum_fn);
 }
 
 /// checks the current platform and adds it as constant
-fn add_platform_const(writer: &mut build_const::ConstValueWriter, platform: svm::Platform) {
-    writer.add_raw(&format!(
+fn add_platform_const(output: &mut String, platform: svm::Platform) {
+    output.push_str(&format!(
         r#"
 /// The `svm::Platform` all constants were built for
 pub const TARGET_PLATFORM: &str = "{platform}";
@@ -122,6 +125,18 @@ pub const TARGET_PLATFORM: &str = "{platform}";
 
 fn generate() {
     let platform = get_platform();
+    let out_dir =
+        PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR environment variable not set"));
+    let output_file = out_dir.join("generated.rs");
+
+    // Start with an empty string that we'll append to
+    let mut output = String::new();
+
+    // Add standard header
+    output.push_str("// Generated file, do not edit by hand\n\n");
+
+    // add the platform as constant
+    add_platform_const(&mut output, platform);
 
     let releases: Releases = if let Ok(file_path) = std::env::var(SVM_RELEASES_LIST_JSON) {
         let file = File::open(file_path).unwrap_or_else(|_| {
@@ -135,41 +150,46 @@ fn generate() {
         svm::blocking_all_releases(platform).expect("Failed to fetch releases")
     };
 
-    let mut writer = build_const::ConstWriter::for_build("builds")
-        .unwrap()
-        .finish_dependencies();
-
-    // add the platform as constant
-    add_platform_const(&mut writer, platform);
-
     // add all solc version info
-    add_build_info_constants(&mut writer, &releases, platform);
+    add_build_info_constants(&mut output, &releases, platform);
 
     // add the whole release string
     let release_json = serde_json::to_string(&releases).unwrap();
-    writer.add_raw(&format!(
-        r#"
+    output.push_str(&format!(
+        r##"
 /// JSON release list
-pub static RELEASE_LIST_JSON : &str = {}"{}"{};"#,
-        "r#", release_json, "#"
+pub static RELEASE_LIST_JSON : &str = r#"{release_json}"#;"##
     ));
 
-    writer.finish();
+    // Write the string to file
+    fs::write(output_file, output).expect("failed to write output file");
+
+    // Tell Cargo that we need to rerun this if any of the relevant env vars change
+    println!("cargo:rerun-if-env-changed={SVM_TARGET_PLATFORM}");
+    println!("cargo:rerun-if-env-changed={SVM_RELEASES_LIST_JSON}");
 }
 
 /// generates an empty `RELEASE_LIST_JSON` static
 fn generate_offline() {
-    let mut writer = build_const::ConstWriter::for_build("builds")
-        .unwrap()
-        .finish_dependencies();
+    let out_dir =
+        PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR environment variable not set"));
+    let output_file = out_dir.join("generated.rs");
+
+    // Start with an empty string
+    let mut output = String::new();
+
+    // Add standard header
+    output.push_str("// Generated file, do not edit by hand\n\n");
 
     let release_json = serde_json::to_string(&Releases::default()).unwrap();
-    writer.add_raw(&format!(
-        r#"
+    output.push_str(&format!(
+        r##"
 /// JSON release list
-pub static RELEASE_LIST_JSON : &str = {}"{}"{};"#,
-        "r#", release_json, "#"
+pub static RELEASE_LIST_JSON : &str = r#"{release_json}"#;"##
     ));
+
+    // Write the string to file
+    fs::write(output_file, output).expect("failed to write output file");
 }
 
 fn main() {

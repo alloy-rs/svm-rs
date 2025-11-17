@@ -6,7 +6,7 @@
 )]
 #![warn(rustdoc::all)]
 #![deny(unused_must_use, rust_2018_idioms)]
-#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 use anyhow::Context;
 use std::io;
@@ -25,24 +25,21 @@ fn main() {
 
 fn main_() -> anyhow::Result<i32> {
     let mut args = std::env::args_os().skip(1).peekable();
-    let version = 'v: {
-        // Try to parse the first argument as a version specifier `+x.y.z`.
-        if let Some(arg) = args.peek() {
-            if let Some(arg) = arg.to_str() {
-                if let Some(stripped) = arg.strip_prefix('+') {
-                    let version = stripped
-                        .parse::<semver::Version>()
-                        .context("failed to parse version specifier")?;
-                    if !version.build.is_empty() || !version.pre.is_empty() {
-                        anyhow::bail!(
-                            "version specifier must not have pre-release or build metadata"
-                        );
-                    }
-                    args.next();
-                    break 'v version;
-                }
-            }
+
+    // Try to parse the first argument as a version specifier `+x.y.z`.
+    let version = if let Some(arg) = args.peek()
+        && let Some(arg) = arg.to_str()
+        && let Some(stripped) = arg.strip_prefix('+')
+    {
+        let version = stripped
+            .parse::<semver::Version>()
+            .context("failed to parse version specifier")?;
+        if !version.build.is_empty() || !version.pre.is_empty() {
+            anyhow::bail!("version specifier must not have pre-release or build metadata");
         }
+        args.next();
+        version
+    } else {
         // Fallback to the global version if one is not specified.
         svm::get_global_version()?.ok_or(svm::SvmError::GlobalVersionNotSet)?
     };
