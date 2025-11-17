@@ -458,4 +458,19 @@ mod tests {
             .as_ref()
             .contains("0.7.1"));
     }
+
+    #[cfg(feature = "blocking")]
+    #[serial_test::serial]
+    #[test]
+    #[ignore]
+    fn blocking_test_0_8_31_pre() {
+        let version = "0.8.31-pre.1".parse().unwrap();
+        blocking_install(&version).unwrap();
+        let solc_path = version_binary(version.to_string().as_str());
+        let output = Command::new(solc_path).arg("--version").output().unwrap();
+
+        assert!(String::from_utf8_lossy(&output.stdout)
+            .as_ref()
+            .contains(&version.to_string()));
+    }
 }
