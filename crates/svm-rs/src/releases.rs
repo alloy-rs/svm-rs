@@ -76,18 +76,43 @@ pub struct Releases {
 
 impl Releases {
     /// Get the checksum of a solc version's binary if it exists.
+    /// Checks for exact version match or for prerelease.
     pub fn get_checksum(&self, v: &Version) -> Option<Vec<u8>> {
-        for build in self.builds.iter() {
-            if build.version.eq(v) {
-                return Some(build.sha256.clone());
-            }
-        }
-        None
+        let matches = |build_info: &BuildInfo| {
+            let matched_release = build_info.version == *v;
+
+            let matched_prelease = !v.pre.is_empty()
+                && build_info.version == Version::new(v.major, v.minor, v.patch)
+                && build_info.prerelease.as_deref() == Some(v.pre.as_str());
+
+            matched_release || matched_prelease
+        };
+
+        self.builds
+            .iter()
+            .find(|build_info| matches(build_info))
+            .map(|build_info| build_info.sha256.clone())
     }
 
-    /// Returns the artifact of the version if any
+    /// Returns the artifact of the version if any, by looking it up in releases or in builds (if
+    /// a prerelease).
     pub fn get_artifact(&self, version: &Version) -> Option<&String> {
-        self.releases.get(version)
+        // Check version artifact in releases.
+        if let Some(artifact) = self.releases.get(version) {
+            return Some(artifact);
+        }
+
+        // If we didn't find any artifact under releases, look up builds for prerelease.
+        if !version.pre.is_empty()
+            && let Some(build_info) = self.builds.iter().find(|b| {
+                b.version == Version::new(version.major, version.minor, version.patch)
+                    && b.prerelease == Some(version.pre.to_string())
+            })
+        {
+            return build_info.path.as_ref();
+        }
+
+        None
     }
 
     /// Returns a sorted list of all versions
@@ -104,6 +129,8 @@ pub struct BuildInfo {
     pub version: Version,
     #[serde(with = "hex_string")]
     pub sha256: Vec<u8>,
+    pub path: Option<String>,
+    pub prerelease: Option<String>,
 }
 
 /// Helper serde module to serialize and deserialize bytes as hex.
