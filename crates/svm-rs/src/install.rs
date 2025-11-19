@@ -77,8 +77,7 @@ pub async fn install(version: &Version) -> Result<PathBuf, SvmError> {
 
     let artifacts = all_releases(platform::platform()).await?;
     let artifact = artifacts
-        .releases
-        .get(version)
+        .get_artifact(version)
         .ok_or_else(|| SvmError::UnknownVersion(version.clone()))?;
     let download_url = artifact_url(platform::platform(), version, artifact.to_string().as_str())?;
 
