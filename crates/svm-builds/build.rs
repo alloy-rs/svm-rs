@@ -53,6 +53,10 @@ fn add_build_info_constants(output: &mut String, releases: &Releases, platform: 
     let mut checksum_match_arms = Vec::with_capacity(releases.builds.len());
 
     for build in releases.builds.iter() {
+        if build.prerelease.is_some() {
+            continue;
+        }
+
         let version = Version::new(
             build.version.major,
             build.version.minor,
