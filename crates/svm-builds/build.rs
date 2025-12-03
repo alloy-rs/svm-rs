@@ -3,7 +3,7 @@
 use std::fs::{self, File};
 use std::path::PathBuf;
 
-use semver::Version;
+use semver::{BuildMetadata, Prerelease, Version};
 use svm::Releases;
 
 /// The string describing the [svm::Platform] to build for
@@ -41,23 +41,37 @@ fn get_platform() -> svm::Platform {
 }
 
 fn version_const_name(version: &Version) -> String {
-    format!(
-        "SOLC_VERSION_{}_{}_{}",
-        version.major, version.minor, version.patch
-    )
+    if version.pre == Prerelease::EMPTY {
+        format!(
+            "SOLC_VERSION_{}_{}_{}",
+            version.major, version.minor, version.patch
+        )
+    } else {
+        let sanitized_pre = version
+            .pre
+            .as_str()
+            .replace(|c: char| !c.is_alphanumeric(), "")
+            .to_uppercase();
+        format!(
+            "SOLC_VERSION_{}_{}_{}_{}",
+            version.major, version.minor, version.patch, sanitized_pre
+        )
+    }
 }
 
 /// Adds build info related constants
 fn add_build_info_constants(output: &mut String, releases: &Releases, platform: svm::Platform) {
     let mut version_idents = Vec::with_capacity(releases.builds.len());
     let mut checksum_match_arms = Vec::with_capacity(releases.builds.len());
-
     for build in releases.builds.iter() {
-        let version = Version::new(
-            build.version.major,
-            build.version.minor,
-            build.version.patch,
-        );
+        let prerelease = build.prerelease.clone().unwrap_or_default();
+        let version = Version {
+            major: build.version.major,
+            minor: build.version.minor,
+            patch: build.version.patch,
+            pre: Prerelease::new(&prerelease).unwrap_or_default(),
+            build: BuildMetadata::EMPTY,
+        };
         let version_name = version_const_name(&version);
 
         output.push_str(&format!(
@@ -65,21 +79,19 @@ fn add_build_info_constants(output: &mut String, releases: &Releases, platform: 
              pub const {version_name}: semver::Version = semver::Version::new({}, {}, {});\n\n",
             version.major, version.minor, version.patch
         ));
-        version_idents.push(version_name);
 
         let sha256 = hex::encode(&build.sha256);
-        let checksum_name = format!(
-            "SOLC_VERSION_{}_{}_{}_CHECKSUM",
-            build.version.major, build.version.minor, build.version.patch
-        );
+        let checksum_name = format!("{version_name}_CHECKSUM");
+
+        version_idents.push(version_name);
 
         output.push_str(&format!(
             "/// Checksum for Solidity compiler version `{version}`.\n\
              pub const {checksum_name}: &str = \"{sha256}\";\n\n",
         ));
         checksum_match_arms.push(format!(
-            "({}, {}, {}) => {}",
-            version.major, version.minor, version.patch, checksum_name
+            "({}, {}, {}, \"{}\") => {}",
+            version.major, version.minor, version.patch, version.pre, checksum_name
         ));
     }
 
@@ -100,7 +112,7 @@ pub static ALL_SOLC_VERSIONS : [semver::Version; {}] = [
         r#"
 /// Get the checksum of a solc version's binary if it exists.
 pub fn get_checksum(version: &semver::Version) -> Option<Vec<u8>> {{
-    let checksum = match (version.major, version.minor, version.patch) {{
+    let checksum = match (version.major, version.minor, version.patch, version.pre.as_str()) {{
         {},
         _ => return None
     }};
