@@ -79,13 +79,12 @@ impl Releases {
     /// Checks for exact version match or for prerelease.
     pub fn get_checksum(&self, v: &Version) -> Option<Vec<u8>> {
         let matches = |build_info: &BuildInfo| {
-            let matched_release = build_info.version == *v;
-
-            let matched_prelease = !v.pre.is_empty()
-                && build_info.version == Version::new(v.major, v.minor, v.patch)
-                && build_info.prerelease.as_deref() == Some(v.pre.as_str());
-
-            matched_release || matched_prelease
+            build_info.version == Version::new(v.major, v.minor, v.patch)
+                && build_info
+                    .prerelease
+                    .as_deref()
+                    .unwrap_or("")
+                    .eq_ignore_ascii_case(v.pre.as_str())
         };
 
         self.builds
