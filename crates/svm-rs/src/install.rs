@@ -304,7 +304,7 @@ mod tests {
     use rand::seq::IndexedRandom;
 
     #[allow(unused)]
-    const LATEST: Version = Version::new(0, 8, 30);
+    const LATEST: Version = Version::new(0, 8, 33);
 
     #[tokio::test]
     #[serial_test::serial]
@@ -450,15 +450,17 @@ mod tests {
         );
     }
 
-    // ensures we can download the latest native solc for linux aarch64
+    // Ensures we can download the latest native solc for linux-aarch64.
     #[tokio::test(flavor = "multi_thread")]
     #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-    async fn can_download_latest_linux_aarch64() {
-        let artifacts = all_releases(Platform::LinuxAarch64).await.unwrap();
+    async fn can_download_linux_aarch64_latest() {
+        let artifacts = all_releases(platform::Platform::LinuxAarch64)
+            .await
+            .unwrap();
 
         let artifact = artifacts.releases.get(&LATEST).unwrap();
         let download_url = artifact_url(
-            Platform::LinuxAarch64,
+            platform::Platform::LinuxAarch64,
             &LATEST,
             artifact.to_string().as_str(),
         )
@@ -469,7 +471,33 @@ mod tests {
         let resp = reqwest::get(download_url).await.unwrap();
         assert!(resp.status().is_success());
         let binbytes = resp.bytes().await.unwrap();
-        ensure_checksum(&binbytes, &LATEST, checksum).unwrap();
+        ensure_checksum(&binbytes, &LATEST, &checksum).unwrap();
+    }
+
+    // Ensures we can download thirdparty linux-aarch64 solc binaries that do not have official
+    // Solidity binary releases.
+    #[tokio::test(flavor = "multi_thread")]
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    async fn can_download_linux_aarch64_thirdparty() {
+        let version: Version = "0.8.30".parse().unwrap();
+        let artifacts = all_releases(platform::Platform::LinuxAarch64)
+            .await
+            .unwrap();
+
+        let artifact = artifacts.releases.get(&version).unwrap();
+        let download_url = artifact_url(
+            platform::Platform::LinuxAarch64,
+            &version,
+            artifact.to_string().as_str(),
+        )
+        .unwrap();
+
+        let checksum = artifacts.get_checksum(&version).unwrap();
+
+        let resp = reqwest::get(download_url).await.unwrap();
+        assert!(resp.status().is_success());
+        let binbytes = resp.bytes().await.unwrap();
+        ensure_checksum(&binbytes, &version, &checksum).unwrap();
     }
 
     #[tokio::test]
