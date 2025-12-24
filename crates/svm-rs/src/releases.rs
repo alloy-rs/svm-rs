@@ -30,6 +30,13 @@ static OLD_SOLC_RELEASES: LazyLock<Releases> = LazyLock::new(|| {
 
 const LINUX_AARCH64_MIN: Version = Version::new(0, 5, 0);
 
+// NOTE: Since version 0.8.31, Linux aarch64 releases are available: https://binaries.soliditylang.org/linux-arm64/list.json
+const LINUX_AARCH64_BINARIES: Version = Version::new(0, 8, 31);
+
+// NOTE: The official Solidity releases uses the platform name "linux-arm64"
+// instead of the "linux-aarch64" naming which is used by SVM.
+static LINUX_AARCH64_PLATFORM: &str = "linux-arm64";
+
 static LINUX_AARCH64_URL_PREFIX: &str = "https://raw.githubusercontent.com/nikitastupin/solc/2287d4326237172acf91ce42fd7ec18a67b7f512/linux/aarch64";
 
 static LINUX_AARCH64_RELEASES_URL: &str = "https://raw.githubusercontent.com/nikitastupin/solc/2287d4326237172acf91ce42fd7ec18a67b7f512/linux/aarch64/list.json";
@@ -120,6 +127,18 @@ impl Releases {
         versions.sort_unstable();
         versions
     }
+
+    /// Retain versions matching a predicate.
+    fn retain_versions(&mut self, mut pred: impl FnMut(&Version) -> bool) {
+        self.builds.retain(|build| pred(&build.version));
+        self.releases.retain(|version, _| pred(version));
+    }
+
+    /// Extends releases with another.
+    fn extend(&mut self, other: Self) {
+        self.builds.extend(other.builds);
+        self.releases.extend(other.releases);
+    }
 }
 
 /// Build info contains the SHA256 checksum of a solc binary.
@@ -158,7 +177,22 @@ mod hex_string {
 pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SvmError> {
     match platform {
         Platform::LinuxAarch64 => {
-            Ok(reqwest::blocking::get(LINUX_AARCH64_RELEASES_URL)?.json::<Releases>()?)
+            // Prior to version 0.8.31, releases for Linux arm64 builds was provided by the
+            // `nikitastupin/solc` repository. From 0.8.31 (inclusive) and onwards, official
+            // binary releases are provided by the Solidity project.
+            let mut releases =
+                reqwest::blocking::get(LINUX_AARCH64_RELEASES_URL)?.json::<Releases>()?;
+            releases.retain_versions(|v| *v < LINUX_AARCH64_BINARIES);
+            fix_build_prerelease(&mut releases);
+            let mut official = reqwest::blocking::get(format!(
+                "{SOLC_RELEASES_URL}/{LINUX_AARCH64_PLATFORM}/list.json",
+            ))?
+            .json::<Releases>()?;
+            // Filtering older releases isn't strinctly necessary here, but do it just in case
+            // Solidity retroactively starts adding older release binaries for linux-aarch64.
+            official.retain_versions(|v| *v >= LINUX_AARCH64_BINARIES);
+            releases.extend(official);
+            Ok(releases)
         }
         Platform::MacOsAarch64 => {
             // The supported versions for both macos-amd64 and macos-aarch64 are the same.
@@ -170,23 +204,16 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SvmError> {
             // require Rosetta support.
             //
             // Note: Since 0.8.24 universal macosx releases are available
-            let mut native =
-                reqwest::blocking::get(MACOS_AARCH64_RELEASES_URL)?.json::<Releases>()?;
+            let native = reqwest::blocking::get(MACOS_AARCH64_RELEASES_URL)?.json::<Releases>()?;
             let mut releases = reqwest::blocking::get(format!(
                 "{}/{}/list.json",
                 SOLC_RELEASES_URL,
                 Platform::MacOsAmd64,
             ))?
             .json::<Releases>()?;
-            releases.builds.retain(|b| {
-                b.version < MACOS_AARCH64_NATIVE || b.version > UNIVERSAL_MACOS_BINARIES
-            });
             releases
-                .releases
-                .retain(|v, _| *v < MACOS_AARCH64_NATIVE || *v > UNIVERSAL_MACOS_BINARIES);
-            releases.builds.extend_from_slice(&native.builds);
-
-            releases.releases.append(&mut native.releases);
+                .retain_versions(|v| *v < MACOS_AARCH64_NATIVE || *v > UNIVERSAL_MACOS_BINARIES);
+            releases.extend(native);
             Ok(releases)
         }
         Platform::AndroidAarch64 => {
@@ -214,10 +241,28 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SvmError> {
 /// Fetch all releases available for the provided platform.
 pub async fn all_releases(platform: Platform) -> Result<Releases, SvmError> {
     match platform {
-        Platform::LinuxAarch64 => Ok(get(LINUX_AARCH64_RELEASES_URL)
+        Platform::LinuxAarch64 => {
+            // Prior to version 0.8.31, releases for Linux arm64 builds was provided by the
+            // `nikitastupin/solc` repository. From 0.8.31 (inclusive) and onwards, official
+            // binary releases are provided by the Solidity project.
+            let mut releases = get(LINUX_AARCH64_RELEASES_URL)
+                .await?
+                .json::<Releases>()
+                .await?;
+            releases.retain_versions(|v| *v < LINUX_AARCH64_BINARIES);
+            fix_build_prerelease(&mut releases);
+            let mut official = get(format!(
+                "{SOLC_RELEASES_URL}/{LINUX_AARCH64_PLATFORM}/list.json",
+            ))
             .await?
             .json::<Releases>()
-            .await?),
+            .await?;
+            // Filtering older releases isn't strinctly necessary here, but do it just in case
+            // Solidity retroactively starts adding older release binaries for linux-aarch64.
+            official.retain_versions(|v| *v >= LINUX_AARCH64_BINARIES);
+            releases.extend(official);
+            Ok(releases)
+        }
         Platform::MacOsAarch64 => {
             // The supported versions for both macos-amd64 and macos-aarch64 are the same.
             //
@@ -226,7 +271,7 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SvmError> {
             //
             // 2. For version <= 0.8.4 we fetch releases from https://binaries.soliditylang.org and
             // require Rosetta support.
-            let mut native = get(MACOS_AARCH64_RELEASES_URL)
+            let native = get(MACOS_AARCH64_RELEASES_URL)
                 .await?
                 .json::<Releases>()
                 .await?;
@@ -238,15 +283,10 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SvmError> {
             .await?
             .json::<Releases>()
             .await?;
-            releases.builds.retain(|b| {
-                b.version < MACOS_AARCH64_NATIVE || b.version > UNIVERSAL_MACOS_BINARIES
-            });
             releases
-                .releases
-                .retain(|v, _| *v < MACOS_AARCH64_NATIVE || *v > UNIVERSAL_MACOS_BINARIES);
+                .retain_versions(|v| *v < MACOS_AARCH64_NATIVE || *v > UNIVERSAL_MACOS_BINARIES);
 
-            releases.builds.extend_from_slice(&native.builds);
-            releases.releases.append(&mut native.releases);
+            releases.extend(native);
             Ok(releases)
         }
         Platform::AndroidAarch64 => Ok(get(ANDROID_AARCH64_RELEASES_URL)
@@ -281,11 +321,24 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SvmError> {
 fn unified_releases(releases: Releases, platform: Platform) -> Releases {
     if platform == Platform::LinuxAmd64 {
         let mut all_releases = OLD_SOLC_RELEASES.clone();
-        all_releases.builds.extend(releases.builds);
-        all_releases.releases.extend(releases.releases);
+        all_releases.extend(releases);
         all_releases
     } else {
         releases
+    }
+}
+
+/// Fixes build pre-release info for certain release lists.
+///
+/// In particular, the release list from the `nikitastupin/solc` repository does correctly label
+/// `prerelease` information in the build array, so populate it based on the `version`.
+fn fix_build_prerelease(releases: &mut Releases) {
+    for build in &mut releases.builds {
+        build.prerelease = if build.version.pre.is_empty() {
+            None
+        } else {
+            Some(build.version.pre.as_str().to_owned())
+        };
     }
 }
 
@@ -305,7 +358,11 @@ pub(crate) fn artifact_url(
     }
 
     if platform == Platform::LinuxAarch64 {
-        if *version >= LINUX_AARCH64_MIN {
+        if *version >= LINUX_AARCH64_BINARIES {
+            return Ok(Url::parse(&format!(
+                "{SOLC_RELEASES_URL}/{LINUX_AARCH64_PLATFORM}/{artifact}"
+            ))?);
+        } else if *version >= LINUX_AARCH64_MIN {
             return Ok(Url::parse(&format!(
                 "{LINUX_AARCH64_URL_PREFIX}/{artifact}"
             ))?);
@@ -431,7 +488,33 @@ mod tests {
 
     #[tokio::test]
     async fn test_all_releases_linux_aarch64() {
-        assert!(all_releases(Platform::LinuxAarch64).await.is_ok());
+        let releases = all_releases(Platform::LinuxAarch64)
+            .await
+            .expect("could not fetch releases for linux-aarch64");
+        let thirdparty = LINUX_AARCH64_MIN;
+        let url1 = artifact_url(
+            Platform::LinuxAarch64,
+            &thirdparty,
+            releases.get_artifact(&thirdparty).unwrap(),
+        )
+        .expect("could not fetch artifact URL");
+        let prerelease = Version::parse("0.8.31-pre.1").expect("failed to parse version");
+        let url2 = artifact_url(
+            Platform::LinuxAarch64,
+            &prerelease,
+            releases.get_artifact(&prerelease).unwrap(),
+        )
+        .expect("could not fetch artifact URL");
+        let official = LINUX_AARCH64_BINARIES;
+        let url3 = artifact_url(
+            Platform::LinuxAarch64,
+            &official,
+            releases.get_artifact(&official).unwrap(),
+        )
+        .expect("could not fetch artifact URL");
+        assert!(url1.to_string().contains(LINUX_AARCH64_URL_PREFIX));
+        assert!(url2.to_string().contains(LINUX_AARCH64_URL_PREFIX));
+        assert!(url3.to_string().contains(SOLC_RELEASES_URL));
     }
 
     #[tokio::test]
