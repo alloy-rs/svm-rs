@@ -5,11 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.23](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.23) - 2026-01-06
+
+### Other
+
+- Use Official `linux-arm64` Binaries ([#182](https://github.com/alloy-rs/svm-rs/issues/182))
+
 ## [0.5.22](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.22) - 2025-12-04
 
 ### Bug Fixes
 
 - [svm-builds] Handle prerelease solidity versions ([#179](https://github.com/alloy-rs/svm-rs/issues/179))
+
+### Miscellaneous Tasks
+
+- Release 0.5.22
 
 ## [0.5.21](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.21) - 2025-11-19
 
@@ -239,6 +249,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Filter for universal macos ([#121](https://github.com/alloy-rs/svm-rs/issues/121))
 - Fix loading peer certificates for corporate networks ([#83](https://github.com/alloy-rs/svm-rs/issues/83))
+
+### Dependencies
+
+- Bump deps ([#123](https://github.com/alloy-rs/svm-rs/issues/123))
+- Update dependencies and lockfile ([#114](https://github.com/alloy-rs/svm-rs/issues/114))
+
+### Features
+
+- [solc] Support rustup-like version specifiers (`+x.y.z`) ([#125](https://github.com/alloy-rs/svm-rs/issues/125))
+- Add support for 0.8.25 ([#118](https://github.com/alloy-rs/svm-rs/issues/118))
+
+### Miscellaneous Tasks
+
+- Release 0.5.1
+- Remove readme in manifests
+- Improve data dir is not a directory error msg ([#126](https://github.com/alloy-rs/svm-rs/issues/126))
+- Release 0.5.0 ([#124](https://github.com/alloy-rs/svm-rs/issues/124))
+- Release 0.4.1 ([#122](https://github.com/alloy-rs/svm-rs/issues/122))
+- Release 0.4.0 ([#120](https://github.com/alloy-rs/svm-rs/issues/120))
+- Release 0.3.6 ([#119](https://github.com/alloy-rs/svm-rs/issues/119))
+- [meta] Improve CI, use workspace.package ([#115](https://github.com/alloy-rs/svm-rs/issues/115))
+
+### Other
+
+- Replace `zip` with `zip_next` ([#127](https://github.com/alloy-rs/svm-rs/issues/127))
+- Merge pull request [#113](https://github.com/alloy-rs/svm-rs/issues/113) from alloy-rs/matt/0.305
+
+### Refactor
+
+- Split out lib.rs into more modules ([#117](https://github.com/alloy-rs/svm-rs/issues/117))
+- Library ([#116](https://github.com/alloy-rs/svm-rs/issues/116))
+
+## [0.3.5](https://github.com/alloy-rs/svm-rs/releases/tag/v0.3.5) - 2024-01-27
+
+### Dependencies
+
+- Merge pull request [#112](https://github.com/alloy-rs/svm-rs/issues/112) from alloy-rs/matt/bump-solc-0.8.24
+- Merge pull request [#110](https://github.com/alloy-rs/svm-rs/issues/110) from alloy-rs/matt/patch-bump
+
+### Miscellaneous Tasks
+
+- Release 0.3.5
+- Release 0.3.5
+- Solc 0.8.24
+
+## [0.3.4](https://github.com/alloy-rs/svm-rs/releases/tag/v0.3.4) - 2024-01-23
+
+### Bug Fixes
+
 - Fix various regression on latest refactor
 - Fix race condition between instances of svm in setting up the SVM directory
 - Bump lock
@@ -280,10 +339,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies
 
-- Bump deps ([#123](https://github.com/alloy-rs/svm-rs/issues/123))
-- Update dependencies and lockfile ([#114](https://github.com/alloy-rs/svm-rs/issues/114))
-- Merge pull request [#112](https://github.com/alloy-rs/svm-rs/issues/112) from alloy-rs/matt/bump-solc-0.8.24
-- Merge pull request [#110](https://github.com/alloy-rs/svm-rs/issues/110) from alloy-rs/matt/patch-bump
 - Merge pull request [#101](https://github.com/alloy-rs/svm-rs/issues/101) from alloy-rs/matt/bump-dep
 - Bump dep
 - Merge pull request [#98](https://github.com/alloy-rs/svm-rs/issues/98) from alloy-rs/matt/bump-version123123
@@ -331,8 +386,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- [solc] Support rustup-like version specifiers (`+x.y.z`) ([#125](https://github.com/alloy-rs/svm-rs/issues/125))
-- Add support for 0.8.25 ([#118](https://github.com/alloy-rs/svm-rs/issues/118))
 - Add release.toml
 - New linux bins
 - Change shas for macOS
@@ -364,17 +417,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous Tasks
 
-- Release 0.5.1
-- Remove readme in manifests
-- Improve data dir is not a directory error msg ([#126](https://github.com/alloy-rs/svm-rs/issues/126))
-- Release 0.5.0 ([#124](https://github.com/alloy-rs/svm-rs/issues/124))
-- Release 0.4.1 ([#122](https://github.com/alloy-rs/svm-rs/issues/122))
-- Release 0.4.0 ([#120](https://github.com/alloy-rs/svm-rs/issues/120))
-- Release 0.3.6 ([#119](https://github.com/alloy-rs/svm-rs/issues/119))
-- [meta] Improve CI, use workspace.package ([#115](https://github.com/alloy-rs/svm-rs/issues/115))
-- Release 0.3.5
-- Release 0.3.5
-- Solc 0.8.24
 - Release 0.3.4
 - Update readme install instructions
 - Remove todo
@@ -431,8 +473,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Other
 
-- Replace `zip` with `zip_next` ([#127](https://github.com/alloy-rs/svm-rs/issues/127))
-- Merge pull request [#113](https://github.com/alloy-rs/svm-rs/issues/113) from alloy-rs/matt/0.305
 - Merge pull request [#109](https://github.com/alloy-rs/svm-rs/issues/109) from alloy-rs/matt/add-release.tmol
 - Merge branch 'master' into matt/add-release.tmol
 - Merge pull request [#107](https://github.com/alloy-rs/svm-rs/issues/107) from alloy-rs/matt/update-readme
@@ -537,11 +577,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add apache license
 - Basic readme
 - First commit
-
-### Refactor
-
-- Split out lib.rs into more modules ([#117](https://github.com/alloy-rs/svm-rs/issues/117))
-- Library ([#116](https://github.com/alloy-rs/svm-rs/issues/116))
 
 ### Styling
 

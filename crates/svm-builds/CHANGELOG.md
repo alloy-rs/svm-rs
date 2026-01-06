@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [svm-builds] Handle prerelease solidity versions ([#179](https://github.com/alloy-rs/svm-rs/issues/179))
 
+### Miscellaneous Tasks
+
+- Release 0.5.22
+
 ## [0.5.21](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.21) - 2025-11-19
 
 ### Miscellaneous Tasks
@@ -31,36 +35,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.18](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.18) - 2025-08-12
 
+### Features
+
+- Add android-aarch64 support ([#151](https://github.com/alloy-rs/svm-rs/issues/151))
+- Improve release profile ([#145](https://github.com/alloy-rs/svm-rs/issues/145))
+
 ### Miscellaneous Tasks
 
 - Release 0.5.18
 - [meta] Add CHANGELOG.md generation ([#165](https://github.com/alloy-rs/svm-rs/issues/165))
-
-## [0.5.16](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.16) - 2025-05-07
-
-### Miscellaneous Tasks
-
 - Remove build_const dependency ([#161](https://github.com/alloy-rs/svm-rs/issues/161))
+- Clippy
+- Remove readme in manifests
+- [meta] Improve CI, use workspace.package ([#115](https://github.com/alloy-rs/svm-rs/issues/115))
 
-## [0.5.11](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.11) - 2025-01-28
+### Other
 
-### Features
+- Merge pull request [#113](https://github.com/alloy-rs/svm-rs/issues/113) from alloy-rs/matt/0.305
 
-- Add android-aarch64 support ([#151](https://github.com/alloy-rs/svm-rs/issues/151))
+### Refactor
 
-## [0.5.8](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.8) - 2024-10-14
+- Library ([#116](https://github.com/alloy-rs/svm-rs/issues/116))
 
-### Features
+## [0.3.5](https://github.com/alloy-rs/svm-rs/releases/tag/v0.3.5) - 2024-01-27
 
-- Improve release profile ([#145](https://github.com/alloy-rs/svm-rs/issues/145))
+### Dependencies
 
-## [0.5.6](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.6) - 2024-08-27
+- Merge pull request [#110](https://github.com/alloy-rs/svm-rs/issues/110) from alloy-rs/matt/patch-bump
 
 ### Miscellaneous Tasks
 
-- Clippy
+- Release 0.3.5
+- Release 0.3.5
 
-## [0.5.1](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.1) - 2024-04-10
+## [0.3.4](https://github.com/alloy-rs/svm-rs/releases/tag/v0.3.4) - 2024-01-23
 
 ### Bug Fixes
 
@@ -68,7 +76,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies
 
-- Merge pull request [#110](https://github.com/alloy-rs/svm-rs/issues/110) from alloy-rs/matt/patch-bump
 - Merge pull request [#101](https://github.com/alloy-rs/svm-rs/issues/101) from alloy-rs/matt/bump-dep
 - Bump dep
 - Merge pull request [#98](https://github.com/alloy-rs/svm-rs/issues/98) from alloy-rs/matt/bump-version123123
@@ -81,17 +88,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous Tasks
 
-- Remove readme in manifests
-- [meta] Improve CI, use workspace.package ([#115](https://github.com/alloy-rs/svm-rs/issues/115))
-- Release 0.3.5
-- Release 0.3.5
 - Release 0.3.4
 - Update versions
 - Patch bumps
 
 ### Other
 
-- Merge pull request [#113](https://github.com/alloy-rs/svm-rs/issues/113) from alloy-rs/matt/0.305
 - Merge pull request [#100](https://github.com/alloy-rs/svm-rs/issues/100) from alloy-rs/evalir/0.8.23
 - Merge branch 'master' into victor/fix-setup-svm-dir-race
 - Merge pull request [#97](https://github.com/alloy-rs/svm-rs/issues/97) from alloy-rs/evalir/0.8.22
@@ -102,10 +104,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Merge pull request [#86](https://github.com/alloy-rs/svm-rs/issues/86) from ethers-rs/v0.8.20
 - Merge pull request [#81](https://github.com/alloy-rs/svm-rs/issues/81) from DaniPopes/split-crates
 - Split crates
-
-### Refactor
-
-- Library ([#116](https://github.com/alloy-rs/svm-rs/issues/116))
 
 ### Styling
 
