@@ -5,7 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.24](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.24) - 2026-02-19
+
+### Dependencies
+
+- Bump reqwest to 0.13 ([#184](https://github.com/alloy-rs/svm-rs/issues/184))
+
+### Miscellaneous Tasks
+
+- Solc 0.8.34 ([#187](https://github.com/alloy-rs/svm-rs/issues/187))
+
+### Other
+
+- Replace retired macos-13 runner with macos-14, move macos-14 to macos-15 ([#185](https://github.com/alloy-rs/svm-rs/issues/185))
+
 ## [0.5.23](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.23) - 2026-01-06
+
+### Miscellaneous Tasks
+
+- Release 0.5.23
 
 ### Other
 

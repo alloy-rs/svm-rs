@@ -1813,7 +1813,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "svm-rs"
-version = "0.5.23"
+version = "0.5.24"
 dependencies = [
  "anyhow",
  "clap",
@@ -1831,7 +1831,7 @@ dependencies = [
  "serial_test",
  "sha2",
  "tempfile",
- "thiserror 2.0.14",
+ "thiserror 1.0.69",
  "tokio",
  "url",
  "vergen",
@@ -1840,7 +1840,7 @@ dependencies = [
 
 [[package]]
 name = "svm-rs-builds"
-version = "0.5.23"
+version = "0.5.24"
 dependencies = [
  "const-hex",
  "semver",
