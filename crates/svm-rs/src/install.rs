@@ -224,7 +224,7 @@ impl Installer<'_> {
             && *self.version >= NIXOS_MIN_PATCH_VERSION
             && *self.version <= NIXOS_MAX_PATCH_VERSION
         {
-            patch_for_nixos(&temp_path)?;
+            patch_for_nixos(self.version, &temp_path)?;
         }
 
         let solc_path = version_binary(&self.version.to_string());
@@ -258,13 +258,17 @@ impl Installer<'_> {
 }
 
 /// Patch the given binary to use the dynamic linker provided by nixos.
-fn patch_for_nixos(bin: &Path) -> Result<(), SvmError> {
+fn patch_for_nixos(version: &Version, bin: &Path) -> Result<(), SvmError> {
+    let dynamic_linker = nixos_dynamic_linker()?;
+    add_gc_root_for_store_path(version, &dynamic_linker)?;
+
     let output = Command::new("nix-shell")
         .arg("-p")
         .arg("patchelf")
         .arg("--run")
         .arg(format!(
-            "patchelf --set-interpreter \"$(cat $NIX_CC/nix-support/dynamic-linker)\" {}",
+            "patchelf --set-interpreter \"{}\" {}",
+            dynamic_linker,
             bin.display()
         ))
         .output()
@@ -276,6 +280,60 @@ fn patch_for_nixos(bin: &Path) -> Result<(), SvmError> {
             String::from_utf8_lossy(&output.stdout).into_owned(),
             String::from_utf8_lossy(&output.stderr).into_owned(),
         )),
+    }
+}
+
+/// Resolves the NixOS dynamic linker path from the nix-shell environment.
+fn nixos_dynamic_linker() -> Result<String, SvmError> {
+    let output = Command::new("nix-shell")
+        .arg("-p")
+        .arg("patchelf")
+        .arg("--run")
+        .arg("cat $NIX_CC/nix-support/dynamic-linker")
+        .output()
+        .map_err(|e| SvmError::CouldNotPatchForNixOs(String::new(), e.to_string()))?;
+
+    if !output.status.success() {
+        return Err(SvmError::CouldNotPatchForNixOs(
+            String::from_utf8_lossy(&output.stdout).into_owned(),
+            String::from_utf8_lossy(&output.stderr).into_owned(),
+        ));
+    }
+
+    let dynamic_linker = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if dynamic_linker.is_empty() {
+        return Err(SvmError::CouldNotPatchForNixOs(
+            String::new(),
+            "empty dynamic linker path from nix-shell".to_string(),
+        ));
+    }
+
+    Ok(dynamic_linker)
+}
+
+/// Adds a persistent gcroot for a nix store path used by a specific installed solc version.
+fn add_gc_root_for_store_path(version: &Version, store_path: &str) -> Result<(), SvmError> {
+    let gcroots_dir = data_dir().join(".gcroots");
+    fs::create_dir_all(&gcroots_dir)?;
+
+    // One gcroot per solc version to avoid repointing a shared root when linker paths change.
+    let root_path = gcroots_dir.join(format!("solc-{version}-dynamic-linker"));
+
+    let output = Command::new("nix-store")
+        .arg("--add-root")
+        .arg(&root_path)
+        .arg("--realise")
+        .arg(store_path)
+        .output()
+        .map_err(|e| SvmError::CouldNotAddNixGcRoot(String::new(), e.to_string()))?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(SvmError::CouldNotAddNixGcRoot(
+            String::from_utf8_lossy(&output.stdout).into_owned(),
+            String::from_utf8_lossy(&output.stderr).into_owned(),
+        ))
     }
 }
 
