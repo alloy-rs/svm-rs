@@ -5,10 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.26](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.26) - 2026-07-09
+
+### Dependencies
+
+- [deps] Bump the cargo-weekly group across 1 directory with 7 updates ([#219](https://github.com/alloy-rs/svm-rs/issues/219))
+- [deps] Bump zip from 4.6.1 to 8.6.0 ([#206](https://github.com/alloy-rs/svm-rs/issues/206))
+- [deps] Bump tokio from 1.36.0 to 1.52.1 in the cargo-weekly group ([#202](https://github.com/alloy-rs/svm-rs/issues/202))
+
+### Miscellaneous Tasks
+
+- Solc 0.8.36 ([#224](https://github.com/alloy-rs/svm-rs/issues/224))
+
 ## [0.5.25](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.25) - 2026-04-30
 
 ### Miscellaneous Tasks
 
+- Release 0.5.25
 - Solc 0.8.35 ([#190](https://github.com/alloy-rs/svm-rs/issues/190))
 
 ## [0.5.24](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.24) - 2026-02-19
