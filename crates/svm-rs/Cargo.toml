@@ -40,7 +40,7 @@ reqwest = { workspace = true, default-features = false, features = ["json"] }
 semver = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
-sha2 = "0.10"
+sha2 = "0.11"
 tempfile = "3.10"
 thiserror = ">=1.0, <3.0"
 url = "2.5"
@@ -49,21 +49,21 @@ url = "2.5"
 anyhow = { version = "1.0", optional = true }
 clap = { version = "4", features = ["derive"], optional = true }
 console = { version = "0.16", default-features = false, optional = true }
-dialoguer = { version = "0.11", default-features = false, optional = true }
+dialoguer = { version = "0.12", default-features = false, optional = true }
 indicatif = { version = "0.18", default-features = false, optional = true }
-itertools = { version = "0.14", optional = true }
+itertools = { version = "0.15", optional = true }
 tokio = { version = "1", features = [
     "rt-multi-thread",
     "macros",
 ], optional = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-zip = { version = "4", default-features = false, features = ["deflate"] }
+zip = { version = "8", default-features = false, features = ["deflate"] }
 
 [dev-dependencies]
 rand = "0.9"
 tempfile = "3.10"
-tokio = { version = "1.36", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.52", features = ["rt-multi-thread", "macros"] }
 serial_test = "3.0"
 
 [features]
@@ -71,7 +71,7 @@ default = ["rustls", "cli", "solc"]
 
 # lib
 openssl = ["reqwest/native-tls"]
-rustls = ["reqwest/rustls-tls", "reqwest/rustls-tls-native-roots"]
+rustls = ["reqwest/rustls"]
 blocking = ["reqwest/blocking"]
 
 # bin

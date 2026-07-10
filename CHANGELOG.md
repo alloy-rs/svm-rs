@@ -5,7 +5,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.26](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.26) - 2026-07-09
+
+### Bug Fixes
+
+- Quote dependabot schedule time ([#214](https://github.com/alloy-rs/svm-rs/issues/214))
+- [deny] Bump rustls-webpki ([#201](https://github.com/alloy-rs/svm-rs/issues/201))
+
+### Dependencies
+
+- [deps] Bump taiki-e/install-action from 2.82.2 to 2.82.6 in the ci-weekly group ([#223](https://github.com/alloy-rs/svm-rs/issues/223))
+- [deps] Bump anyhow from 1.0.102 to 1.0.103 in the cargo-weekly group ([#222](https://github.com/alloy-rs/svm-rs/issues/222))
+- [deps] Bump the ci-weekly group across 1 directory with 2 updates ([#217](https://github.com/alloy-rs/svm-rs/issues/217))
+- [deps] Bump the cargo-weekly group across 1 directory with 7 updates ([#219](https://github.com/alloy-rs/svm-rs/issues/219))
+- [deps] Bump reqwest from 0.13.2 to 0.13.3 in the cargo-weekly group across 1 directory ([#205](https://github.com/alloy-rs/svm-rs/issues/205))
+- [deps] Bump zip from 4.6.1 to 8.6.0 ([#206](https://github.com/alloy-rs/svm-rs/issues/206))
+- [deps] Bump taiki-e/install-action from 2.75.20 to 2.75.27 in the actions-weekly group ([#207](https://github.com/alloy-rs/svm-rs/issues/207))
+- [deps] Bump tokio from 1.36.0 to 1.52.1 in the cargo-weekly group ([#202](https://github.com/alloy-rs/svm-rs/issues/202))
+- Pin dependencies and harden workflows ([#204](https://github.com/alloy-rs/svm-rs/issues/204))
+- [deps] Update dtolnay/rust-toolchain requirement to 29eef336d9b2848a0b548edc03f92a220660cdb8 ([#199](https://github.com/alloy-rs/svm-rs/issues/199))
+- [deps] Bump actions/upload-artifact from 4 to 7 ([#198](https://github.com/alloy-rs/svm-rs/issues/198))
+- [deps] Bump actions/checkout from 4 to 6 ([#197](https://github.com/alloy-rs/svm-rs/issues/197))
+- [deps] Bump actions/download-artifact from 4 to 8 ([#196](https://github.com/alloy-rs/svm-rs/issues/196))
+- [deps] Bump taiki-e/install-action from 2.74.0 to 2.75.20 in the actions-weekly group ([#195](https://github.com/alloy-rs/svm-rs/issues/195))
+
+### Miscellaneous Tasks
+
+- Solc 0.8.36 ([#224](https://github.com/alloy-rs/svm-rs/issues/224))
+- Group weekly dependabot updates ([#213](https://github.com/alloy-rs/svm-rs/issues/213))
+
+### Other
+
+- Set rust-toolchain inputs explicitly ([#220](https://github.com/alloy-rs/svm-rs/issues/220))
+- Harden supply chain — pin actions, fix CVEs, add deny.toml ([#189](https://github.com/alloy-rs/svm-rs/issues/189))
+
+## [0.5.25](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.25) - 2026-04-30
+
+### Miscellaneous Tasks
+
+- Release 0.5.25
+- Solc 0.8.35 ([#190](https://github.com/alloy-rs/svm-rs/issues/190))
+
+## [0.5.24](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.24) - 2026-02-19
+
+### Dependencies
+
+- Bump reqwest to 0.13 ([#184](https://github.com/alloy-rs/svm-rs/issues/184))
+
+### Miscellaneous Tasks
+
+- Release 0.5.24
+- Solc 0.8.34 ([#187](https://github.com/alloy-rs/svm-rs/issues/187))
+
+### Other
+
+- Replace retired macos-13 runner with macos-14, move macos-14 to macos-15 ([#185](https://github.com/alloy-rs/svm-rs/issues/185))
+
 ## [0.5.23](https://github.com/alloy-rs/svm-rs/releases/tag/v0.5.23) - 2026-01-06
+
+### Miscellaneous Tasks
+
+- Release 0.5.23
 
 ### Other
 
