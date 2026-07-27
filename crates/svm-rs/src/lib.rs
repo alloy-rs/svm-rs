@@ -66,18 +66,25 @@ pub fn unset_global_version() -> Result<(), SvmError> {
 pub fn installed_versions() -> Result<Vec<Version>, SvmError> {
     let mut versions = vec![];
     for v in fs::read_dir(data_dir())? {
-        let v = v?;
-        let path = v.path();
-        let Some(file_name) = path.file_name() else {
-            continue;
-        };
-        let Some(file_name) = file_name.to_str() else {
-            continue;
-        };
-        if file_name == ".global-version" {
+        let path = v?.path();
+        // Only consider version directories and ignore all other entries, such as the global
+        // version file, per-version install lock files or temporary files of installations that
+        // are currently in progress.
+        if !path.is_dir() {
             continue;
         }
-        versions.push(Version::parse(file_name)?);
+        let Some(file_name) = path.file_name().and_then(|file_name| file_name.to_str()) else {
+            continue;
+        };
+        let Ok(version) = Version::parse(file_name) else {
+            continue;
+        };
+        // Only count fully installed versions: the version directory is created before the binary
+        // is downloaded and renamed into place.
+        if !version_binary(file_name).is_file() {
+            continue;
+        }
+        versions.push(version);
     }
     versions.sort();
     Ok(versions)
@@ -98,6 +105,10 @@ pub async fn all_versions() -> Result<Vec<Version>, SvmError> {
 }
 
 /// Removes the provided version of Solc from the machine.
+///
+/// Note: removing a version that is concurrently being installed or executed is inherently racy;
+/// this also removes the version's install lock file, so an installation that is in progress at
+/// the same time can fail or reinstall the version.
 pub fn remove_version(version: &Version) -> Result<(), SvmError> {
     fs::remove_dir_all(version_path(version.to_string().as_str())).map_err(Into::into)
 }
@@ -108,4 +119,32 @@ fn setup_version(version: &str) -> Result<(), SvmError> {
         fs::create_dir_all(v)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Auxiliary entries in the data directory, such as lock files left behind by older versions,
+    /// must not fail the version listing, and only fully installed versions are listed.
+    #[serial_test::serial]
+    #[test]
+    fn installed_versions_ignores_auxiliary_entries() {
+        setup_data_dir().unwrap();
+        let dir = data_dir();
+        fs::write(dir.join(".lock-solc-0.8.10"), "").unwrap();
+        fs::write(dir.join(".tmpXYZ123"), "").unwrap();
+        fs::write(dir.join(".DS_Store"), "").unwrap();
+        for version in ["0.8.10", "0.8.24"] {
+            fs::create_dir_all(version_path(version)).unwrap();
+            fs::write(version_binary(version), "solc").unwrap();
+        }
+        // A version directory without a binary is an installation that never completed.
+        fs::create_dir_all(version_path("99.99.99")).unwrap();
+
+        let versions = installed_versions().unwrap();
+        assert!(versions.contains(&Version::new(0, 8, 10)));
+        assert!(versions.contains(&Version::new(0, 8, 24)));
+        assert!(!versions.contains(&Version::new(99, 99, 99)));
+    }
 }

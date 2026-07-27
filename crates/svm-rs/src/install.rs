@@ -1,6 +1,6 @@
 use crate::{
-    SvmError, all_releases, data_dir, platform, releases::artifact_url, setup_data_dir,
-    setup_version, version_binary,
+    SvmError, all_releases, platform, releases::artifact_url, setup_data_dir, setup_version,
+    version_binary, version_path,
 };
 use semver::Version;
 use sha2::Digest;
@@ -41,6 +41,12 @@ pub fn blocking_install(version: &Version) -> Result<PathBuf, SvmError> {
         .get_checksum(version)
         .unwrap_or_else(|| panic!("checksum not available: {:?}", version.to_string()));
 
+    // Skip the download if this version is already installed and matches the expected checksum,
+    // which is the common case when parallel processes install the same version.
+    if let Some(solc_path) = find_reusable_installation(version, &expected_checksum) {
+        return Ok(solc_path);
+    }
+
     let res = reqwest::blocking::Client::builder()
         .timeout(REQUEST_TIMEOUT)
         .build()
@@ -56,10 +62,11 @@ pub fn blocking_install(version: &Version) -> Result<PathBuf, SvmError> {
     ensure_checksum(&binbytes, version, &expected_checksum)?;
 
     // lock file to indicate that installation of this solc version will be in progress.
+    setup_version(&version.to_string())?;
     let lock_path = lock_file_path(version);
     // wait until lock file is released, possibly by another parallel thread trying to install the
     // same version of solc.
-    let _lock = try_lock_file(lock_path)?;
+    let _lock = try_lock_file(&lock_path)?;
 
     do_install_and_retry(
         version,
@@ -70,6 +77,9 @@ pub fn blocking_install(version: &Version) -> Result<PathBuf, SvmError> {
 }
 
 /// Installs the provided version of Solc in the machine.
+///
+/// If the version is already installed and matches the expected checksum, it is reused instead of
+/// being reinstalled.
 ///
 /// Returns the path to the solc file.
 pub async fn install(version: &Version) -> Result<PathBuf, SvmError> {
@@ -84,6 +94,12 @@ pub async fn install(version: &Version) -> Result<PathBuf, SvmError> {
     let expected_checksum = artifacts
         .get_checksum(version)
         .unwrap_or_else(|| panic!("checksum not available: {:?}", version.to_string()));
+
+    // Skip the download if this version is already installed and matches the expected checksum,
+    // which is the common case when parallel processes install the same version.
+    if let Some(solc_path) = find_reusable_installation(version, &expected_checksum) {
+        return Ok(solc_path);
+    }
 
     let res = reqwest::Client::builder()
         .timeout(REQUEST_TIMEOUT)
@@ -101,10 +117,11 @@ pub async fn install(version: &Version) -> Result<PathBuf, SvmError> {
     ensure_checksum(&binbytes, version, &expected_checksum)?;
 
     // lock file to indicate that installation of this solc version will be in progress.
+    setup_version(&version.to_string())?;
     let lock_path = lock_file_path(version);
     // wait until lock file is released, possibly by another parallel thread trying to install the
     // same version of solc.
-    let _lock = try_lock_file(lock_path)?;
+    let _lock = try_lock_file(&lock_path)?;
 
     do_install_and_retry(
         version,
@@ -114,7 +131,27 @@ pub async fn install(version: &Version) -> Result<PathBuf, SvmError> {
     )
 }
 
-/// Same as [`do_install`] but retries "text file busy" errors.
+/// Returns the path of the solc binary if `version` is already installed and its contents match
+/// the expected artifact checksum.
+///
+/// Note: on NixOS the installed binary is patched with `patchelf` and for old solc versions on
+/// Windows the artifact is a zip archive, so in both cases the file on disk never matches the
+/// artifact checksum and the installation is never considered reusable here.
+fn find_reusable_installation(version: &Version, expected_checksum: &[u8]) -> Option<PathBuf> {
+    let solc_path = version_binary(&version.to_string());
+    if let Ok(content) = fs::read(&solc_path)
+        && ensure_checksum(&content, version, expected_checksum).is_ok()
+    {
+        // checksum of the existing file matches the expected release checksum
+        return Some(solc_path);
+    }
+    None
+}
+
+/// Same as [`do_install`] but reuses an already installed binary if it matches the expected
+/// checksum and retries "text file busy" errors.
+///
+/// Expects the per-version lock to be held by the caller.
 fn do_install_and_retry(
     version: &Version,
     binbytes: &[u8],
@@ -124,6 +161,13 @@ fn do_install_and_retry(
     let mut retries = 0;
 
     loop {
+        // A parallel process may have already installed this version while we were downloading or
+        // waiting for the lock. In that case reuse the existing binary instead of replacing it,
+        // because it can already be executing in another process.
+        if let Some(solc_path) = find_reusable_installation(version, expected_checksum) {
+            return Ok(solc_path);
+        }
+
         return match do_install(version, binbytes, artifact) {
             Ok(path) => Ok(path),
             Err(err) => {
@@ -134,17 +178,8 @@ fn do_install_and_retry(
                 retries += 1;
                 // check if this failed due to a text file busy, which indicates that a different process started using the target file
                 if err.to_string().to_lowercase().contains("text file busy") {
-                    // busy solc can be in use for a while (e.g. if compiling a large project), so we check if the file exists and has the correct checksum
-                    let solc_path = version_binary(&version.to_string());
-                    if solc_path.exists()
-                        && let Ok(content) = fs::read(&solc_path)
-                        && ensure_checksum(&content, version, expected_checksum).is_ok()
-                    {
-                        // checksum of the existing file matches the expected release checksum
-                        return Ok(solc_path);
-                    }
-
-                    // retry after some time
+                    // busy solc can be in use for a while (e.g. if compiling a large project), so
+                    // we retry after some time; the loop re-checks whether a valid binary exists
                     std::thread::sleep(Duration::from_millis(250));
                     continue;
                 }
@@ -168,36 +203,59 @@ fn do_install(version: &Version, binbytes: &[u8], _artifact: &str) -> Result<Pat
     installer.install()
 }
 
-/// Creates the file and locks it exclusively, this will block if the file is currently locked.
-fn try_lock_file(lock_path: PathBuf) -> Result<LockFile, SvmError> {
-    let _lock_file = fs::OpenOptions::new()
-        .create(true)
-        .truncate(true)
-        .read(true)
-        .write(true)
-        .open(&lock_path)?;
-    _lock_file.lock()?;
-    Ok(LockFile {
-        lock_path,
-        _lock_file,
-    })
-}
+/// Creates or opens the lock file and locks it exclusively, this will block if the file is
+/// currently locked by another process.
+///
+/// The lock is released once the returned file is dropped.
+///
+/// Note: the lock file is intentionally never removed. Removing it while another process is
+/// blocked on the same path would let a third process re-create the path as a new file and lock
+/// it immediately, so that two processes hold the "exclusive" lock at the same time.
+fn try_lock_file(lock_path: &Path) -> Result<fs::File, SvmError> {
+    loop {
+        let lock_file = fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(lock_path)?;
+        lock_file.lock()?;
 
-/// Represents a lockfile that's removed once dropped
-struct LockFile {
-    _lock_file: fs::File,
-    lock_path: PathBuf,
-}
-
-impl Drop for LockFile {
-    fn drop(&mut self) {
-        let _ = fs::remove_file(&self.lock_path);
+        // The lock file may have been removed and re-created while we were blocked on the lock,
+        // e.g. by `remove_version` removing the version directory: in that case the acquired lock
+        // is held on an orphaned file, so retry on the file that now exists at the path.
+        if lock_is_current(&lock_file, lock_path)? {
+            return Ok(lock_file);
+        }
     }
 }
 
-/// Returns the lockfile to use for a specific file
+/// Returns whether the locked file is still the file at `lock_path`.
+#[cfg(target_family = "unix")]
+fn lock_is_current(lock_file: &fs::File, lock_path: &Path) -> Result<bool, SvmError> {
+    use std::os::unix::fs::MetadataExt;
+    let held = lock_file.metadata()?;
+    match fs::metadata(lock_path) {
+        Ok(current) => Ok(current.dev() == held.dev() && current.ino() == held.ino()),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(err) => Err(err.into()),
+    }
+}
+
+/// Returns whether the locked file is still the file at `lock_path`.
+#[cfg(not(target_family = "unix"))]
+fn lock_is_current(_lock_file: &fs::File, _lock_path: &Path) -> Result<bool, SvmError> {
+    // On Windows a locked file cannot be removed, so the lock is always held on the current file.
+    Ok(true)
+}
+
+/// Returns the lockfile to use for a specific version.
+///
+/// The lock file lives inside the version directory so that the data directory root only ever
+/// contains version directories and the global version file: svm-rs <= 0.5.26 fails to list
+/// installed versions if the data directory root contains any other entry.
 fn lock_file_path(version: &Version) -> PathBuf {
-    data_dir().join(format!(".lock-solc-{version}"))
+    version_path(&version.to_string()).join(".lock")
 }
 
 // Installer type that copies binary data to the appropriate solc binary file:
@@ -213,12 +271,23 @@ struct Installer<'a> {
 impl Installer<'_> {
     /// Installs the solc version at the version specific destination and returns the path to the installed solc file.
     fn install(self) -> Result<PathBuf, SvmError> {
-        let named_temp_file = NamedTempFile::new_in(data_dir())?;
+        let version = self.version.to_string();
+        let version_dir = version_path(&version);
+        let solc_path = version_binary(&version);
+
+        // The temp file lives inside the version directory so that the data directory root only
+        // ever contains version directories and the global version file, see [`lock_file_path`].
+        let named_temp_file = NamedTempFile::new_in(&version_dir)?;
         let (mut f, temp_path) = named_temp_file.into_parts();
 
         #[cfg(target_family = "unix")]
         f.set_permissions(Permissions::from_mode(0o755))?;
         f.write_all(self.binbytes)?;
+        f.sync_data()?;
+        // Close the file before renaming it into place: once the rename makes it reachable at the
+        // solc path, an open write handle would cause "text file busy" (`ETXTBSY`) errors for any
+        // process that tries to execute the binary.
+        drop(f);
 
         if platform::is_nixos()
             && *self.version >= NIXOS_MIN_PATCH_VERSION
@@ -227,11 +296,10 @@ impl Installer<'_> {
             patch_for_nixos(&temp_path)?;
         }
 
-        let solc_path = version_binary(&self.version.to_string());
-
         // Windows requires that the old file be moved out of the way first.
         if cfg!(target_os = "windows") {
-            let temp_path = NamedTempFile::new_in(data_dir()).map(NamedTempFile::into_temp_path)?;
+            let temp_path =
+                NamedTempFile::new_in(&version_dir).map(NamedTempFile::into_temp_path)?;
             fs::rename(&solc_path, &temp_path).unwrap_or_default();
         }
 
@@ -360,6 +428,84 @@ mod tests {
 
         child.kill().unwrap();
         let _: std::process::ExitStatus = child.wait().unwrap();
+    }
+
+    /// Ensures that an already installed binary that matches the expected checksum is reused
+    /// instead of being replaced, even while it is currently being executed.
+    ///
+    /// Regression test for <https://github.com/foundry-rs/foundry/issues/4736>: replacing the
+    /// installed binary on every install caused "text file busy" (`ETXTBSY`) errors when parallel
+    /// processes installed and executed the same solc version.
+    #[cfg(target_family = "unix")]
+    #[serial_test::serial]
+    #[test]
+    fn install_reuses_existing_binary_while_running() {
+        let version: Version = "0.8.19".parse().unwrap();
+        let solc_path = version_binary(version.to_string().as_str());
+        fs::create_dir_all(solc_path.parent().unwrap()).unwrap();
+
+        // Install a fake solc: a copy of `sleep`, so it can be executed while we "reinstall".
+        let stdout = Command::new("which").arg("sleep").output().unwrap().stdout;
+        let sleep_path = String::from_utf8(stdout).unwrap();
+        fs::copy(sleep_path.trim_end(), &solc_path).unwrap();
+        let binbytes = fs::read(&solc_path).unwrap();
+        let expected_checksum = &sha2::Sha256::digest(&binbytes)[..];
+
+        let mut child = Command::new(&solc_path).arg("30").spawn().unwrap();
+
+        let _lock = try_lock_file(&lock_file_path(&version)).unwrap();
+        let installed = do_install_and_retry(
+            &version,
+            b"different binary contents",
+            "",
+            expected_checksum,
+        )
+        .unwrap();
+
+        assert_eq!(installed, solc_path);
+        // The running binary matches the expected checksum and must not have been replaced.
+        assert!(
+            fs::read(&solc_path).unwrap() == binbytes,
+            "the running binary was replaced"
+        );
+
+        child.kill().unwrap();
+        let _: std::process::ExitStatus = child.wait().unwrap();
+    }
+
+    /// Ensures that an existing binary that does not match the expected checksum is replaced.
+    #[serial_test::serial]
+    #[test]
+    fn install_replaces_corrupt_binary() {
+        let version: Version = "0.8.21".parse().unwrap();
+        let solc_path = version_binary(version.to_string().as_str());
+        fs::create_dir_all(solc_path.parent().unwrap()).unwrap();
+        fs::write(&solc_path, b"corrupt binary contents").unwrap();
+
+        let binbytes = b"expected binary contents";
+        let expected_checksum = &sha2::Sha256::digest(binbytes)[..];
+
+        let _lock = try_lock_file(&lock_file_path(&version)).unwrap();
+        let installed = do_install_and_retry(&version, binbytes, "", expected_checksum).unwrap();
+
+        assert_eq!(installed, solc_path);
+        assert_eq!(fs::read(&solc_path).unwrap(), binbytes);
+    }
+
+    /// The lock file must never be removed, see [`try_lock_file`].
+    #[serial_test::serial]
+    #[test]
+    fn lock_file_is_not_removed() {
+        let version: Version = "0.8.13".parse().unwrap();
+        setup_data_dir().unwrap();
+        setup_version(version.to_string().as_str()).unwrap();
+
+        let lock_path = lock_file_path(&version);
+        drop(try_lock_file(&lock_path).unwrap());
+        assert!(lock_path.exists());
+
+        // Re-acquiring the lock must work with the file already present.
+        drop(try_lock_file(&lock_path).unwrap());
     }
 
     #[cfg(feature = "blocking")]
