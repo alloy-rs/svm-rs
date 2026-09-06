@@ -16,6 +16,48 @@ fn executable() -> Vec<u8> {
 }
 
 #[test]
+fn nixos_cache_reuse_respects_patch_version_boundaries() {
+    let bytes = executable();
+    let checksum = sha2::Sha256::digest(&bytes);
+    for (version, needs_patch) in [
+        (Version::new(0, 7, 5), false),
+        (Version::new(0, 7, 6), true),
+        (Version::new(0, 8, 18), true),
+        (Version::new(0, 8, 28), true),
+        (Version::new(0, 8, 29), false),
+    ] {
+        // Model a checksum-valid, executable artifact restored from a non-NixOS cache. Do not use
+        // do_install: on a NixOS host that would already patch the fixture before this test.
+        setup_version(&version.to_string()).unwrap();
+        let path = version_binary(&version.to_string());
+        fs::write(&path, &bytes).unwrap();
+        fs::set_permissions(&path, Permissions::from_mode(0o755)).unwrap();
+        assert_eq!(requires_nixos_patch(&version, true), needs_patch);
+        assert!(!requires_nixos_patch(&version, false));
+        let _lock = try_lock_file(&lock_file_path(&version)).unwrap();
+        for repair_permissions in [false, true] {
+            let nixos = find_reusable_installation_for_platform(
+                &version,
+                &checksum,
+                repair_permissions,
+                true,
+            )
+            .unwrap();
+            assert_eq!(nixos.is_none(), needs_patch, "NixOS solc {version}");
+            let linux = find_reusable_installation_for_platform(
+                &version,
+                &checksum,
+                repair_permissions,
+                false,
+            )
+            .unwrap();
+            assert_eq!(linux, Some(path.clone()), "non-NixOS solc {version}");
+        }
+        assert_eq!(fs::read(&path).unwrap(), bytes);
+    }
+}
+
+#[test]
 fn repairs_permissions_while_binary_is_running() {
     let version = Version::new(99, 0, 5);
     let output = Command::new("which").arg("sleep").output().unwrap();

@@ -138,14 +138,32 @@ pub async fn install(version: &Version) -> Result<PathBuf, SvmError> {
 /// handle for both verification and chmod so repairs neither replace the inode nor open an
 /// executable for writing.
 ///
-/// Note: on NixOS the installed binary is patched with `patchelf` and for old solc versions on
-/// Windows the artifact is a zip archive, so in both cases the file on disk never matches the
-/// artifact checksum and the installation is never considered reusable here.
+/// Versions requiring a NixOS interpreter patch must go through installation even if their bytes
+/// match: a restored Linux cache can contain an unpatched binary. Patched NixOS binaries and old
+/// Windows zip artifacts do not match the download checksum and are not reused either.
 fn find_reusable_installation(
     version: &Version,
     expected_checksum: &[u8],
     _repair_permissions: bool,
 ) -> Result<Option<PathBuf>, SvmError> {
+    find_reusable_installation_for_platform(
+        version,
+        expected_checksum,
+        _repair_permissions,
+        platform::is_nixos(),
+    )
+}
+
+/// Keep platform selection explicit so cache reuse can be tested without changing the host OS.
+fn find_reusable_installation_for_platform(
+    version: &Version,
+    expected_checksum: &[u8],
+    _repair_permissions: bool,
+    is_nixos: bool,
+) -> Result<Option<PathBuf>, SvmError> {
+    if requires_nixos_patch(version, is_nixos) {
+        return Ok(None);
+    }
     let solc_path = version_binary(&version.to_string());
     let Ok(mut file) = fs::File::open(&solc_path) else {
         return Ok(None);
@@ -164,6 +182,11 @@ fn find_reusable_installation(
         file.set_permissions(Permissions::from_mode(0o755))?;
     }
     Ok(Some(solc_path))
+}
+
+/// Shared by cache reuse and installation so neither path can skip required interpreter patching.
+fn requires_nixos_patch(version: &Version, is_nixos: bool) -> bool {
+    is_nixos && *version >= NIXOS_MIN_PATCH_VERSION && *version <= NIXOS_MAX_PATCH_VERSION
 }
 
 /// Same as [`do_install`] but reuses an already installed binary if it matches the expected
@@ -326,10 +349,7 @@ impl Installer<'_> {
         // process that tries to execute the binary.
         drop(f);
 
-        if platform::is_nixos()
-            && *self.version >= NIXOS_MIN_PATCH_VERSION
-            && *self.version <= NIXOS_MAX_PATCH_VERSION
-        {
+        if requires_nixos_patch(self.version, platform::is_nixos()) {
             patch_for_nixos(self.version, &temp_path)?;
         }
 

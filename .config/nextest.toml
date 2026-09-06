@@ -6,7 +6,7 @@ retries = { backoff = "exponential", count = 2, delay = "3s", jitter = true }
 slow-timeout = { period = "1m", terminate-after = 3 }
 
 [[profile.default.overrides]]
-filter = 'test(regression::) | binary(solc)'
+filter = 'test(regression::) | binary(solc) | test(install::tests::install_) | test(install::tests::lock_file_)'
 retries = 0
 
 [profile.ci]
