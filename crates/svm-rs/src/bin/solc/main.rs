@@ -64,10 +64,29 @@ fn exec(cmd: &mut Command) -> io::Result<ExitStatus> {
     #[cfg(unix)]
     {
         use std::os::unix::prelude::*;
-        Err(cmd.exec())
+        retry_busy(|| Err(cmd.exec()))
     }
     #[cfg(not(unix))]
     {
-        cmd.status()
+        // Retry process creation only, never wait errors or the compiler's exit status.
+        retry_busy(|| cmd.spawn())?.wait()
     }
 }
+
+// Closing the installer's write handle does not close duplicates inherited by concurrently forked
+// children. Retry only a rejected launch, for at most 310 ms; a successfully executed program is
+// never rerun. This protects the svm solc wrapper, not consumers launching cached solc directly.
+fn retry_busy<T>(mut launch: impl FnMut() -> io::Result<T>) -> io::Result<T> {
+    for delay in [10, 20, 40, 80, 160] {
+        match launch() {
+            Err(err) if err.kind() == io::ErrorKind::ExecutableFileBusy => {
+                std::thread::sleep(std::time::Duration::from_millis(delay));
+            }
+            result => return result,
+        }
+    }
+    launch()
+}
+
+#[cfg(test)]
+mod tests;

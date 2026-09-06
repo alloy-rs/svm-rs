@@ -1,3 +1,13 @@
+# Each test gets its own process and SVM data directory. Do not serialize tests: the concurrency
+# regressions deliberately create additional processes/threads inside a single test.
 [profile.default]
+# Preserve retries for network-dependent tests, but never retry the regression tests below.
 retries = { backoff = "exponential", count = 2, delay = "3s", jitter = true }
 slow-timeout = { period = "1m", terminate-after = 3 }
+
+[[profile.default.overrides]]
+filter = 'test(regression::) | binary(solc)'
+retries = 0
+
+[profile.ci]
+fail-fast = false

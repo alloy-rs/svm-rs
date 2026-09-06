@@ -127,7 +127,6 @@ mod tests {
 
     /// Auxiliary entries in the data directory, such as lock files left behind by older versions,
     /// must not fail the version listing, and only fully installed versions are listed.
-    #[serial_test::serial]
     #[test]
     fn installed_versions_ignores_auxiliary_entries() {
         setup_data_dir().unwrap();

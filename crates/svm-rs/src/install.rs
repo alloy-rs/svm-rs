@@ -6,7 +6,7 @@ use semver::Version;
 use sha2::Digest;
 use std::{
     fs,
-    io::{ErrorKind, Write},
+    io::{ErrorKind, Read, Write},
     path::{Path, PathBuf},
     process::Command,
     time::Duration,
@@ -43,7 +43,7 @@ pub fn blocking_install(version: &Version) -> Result<PathBuf, SvmError> {
 
     // Skip the download if this version is already installed and matches the expected checksum,
     // which is the common case when parallel processes install the same version.
-    if let Some(solc_path) = find_reusable_installation(version, &expected_checksum) {
+    if let Some(solc_path) = find_reusable_installation(version, &expected_checksum, false)? {
         return Ok(solc_path);
     }
 
@@ -97,7 +97,7 @@ pub async fn install(version: &Version) -> Result<PathBuf, SvmError> {
 
     // Skip the download if this version is already installed and matches the expected checksum,
     // which is the common case when parallel processes install the same version.
-    if let Some(solc_path) = find_reusable_installation(version, &expected_checksum) {
+    if let Some(solc_path) = find_reusable_installation(version, &expected_checksum, false)? {
         return Ok(solc_path);
     }
 
@@ -134,18 +134,36 @@ pub async fn install(version: &Version) -> Result<PathBuf, SvmError> {
 /// Returns the path of the solc binary if `version` is already installed and its contents match
 /// the expected artifact checksum.
 ///
+/// Permission repair is only allowed while holding the per-version install lock. Use a read-only
+/// handle for both verification and chmod so repairs neither replace the inode nor open an
+/// executable for writing.
+///
 /// Note: on NixOS the installed binary is patched with `patchelf` and for old solc versions on
 /// Windows the artifact is a zip archive, so in both cases the file on disk never matches the
 /// artifact checksum and the installation is never considered reusable here.
-fn find_reusable_installation(version: &Version, expected_checksum: &[u8]) -> Option<PathBuf> {
+fn find_reusable_installation(
+    version: &Version,
+    expected_checksum: &[u8],
+    _repair_permissions: bool,
+) -> Result<Option<PathBuf>, SvmError> {
     let solc_path = version_binary(&version.to_string());
-    if let Ok(content) = fs::read(&solc_path)
-        && ensure_checksum(&content, version, expected_checksum).is_ok()
+    let Ok(mut file) = fs::File::open(&solc_path) else {
+        return Ok(None);
+    };
+    let mut content = Vec::new();
+    if file.read_to_end(&mut content).is_err()
+        || ensure_checksum(&content, version, expected_checksum).is_err()
     {
-        // checksum of the existing file matches the expected release checksum
-        return Some(solc_path);
+        return Ok(None);
     }
-    None
+    #[cfg(target_family = "unix")]
+    if file.metadata()?.permissions().mode() & 0o111 != 0o111 {
+        if !_repair_permissions {
+            return Ok(None);
+        }
+        file.set_permissions(Permissions::from_mode(0o755))?;
+    }
+    Ok(Some(solc_path))
 }
 
 /// Same as [`do_install`] but reuses an already installed binary if it matches the expected
@@ -164,7 +182,7 @@ fn do_install_and_retry(
         // A parallel process may have already installed this version while we were downloading or
         // waiting for the lock. In that case reuse the existing binary instead of replacing it,
         // because it can already be executing in another process.
-        if let Some(solc_path) = find_reusable_installation(version, expected_checksum) {
+        if let Some(solc_path) = find_reusable_installation(version, expected_checksum, true)? {
             return Ok(solc_path);
         }
 
@@ -275,6 +293,25 @@ impl Installer<'_> {
         let version_dir = version_path(&version);
         let solc_path = version_binary(&version);
 
+        // Preparing the file in a separate scope ensures this process's writable handle is closed
+        // before the executable becomes visible to consumers.
+        let temp_path = self.prepare()?;
+
+        // Windows requires that the old file be moved out of the way first.
+        if cfg!(target_os = "windows") {
+            let temp_path =
+                NamedTempFile::new_in(&version_dir).map(NamedTempFile::into_temp_path)?;
+            fs::rename(&solc_path, &temp_path).unwrap_or_default();
+        }
+
+        temp_path.persist(&solc_path)?;
+        Ok(solc_path)
+    }
+
+    /// Returns a fully written, patched temporary executable with no writable handle owned here.
+    fn prepare(self) -> Result<tempfile::TempPath, SvmError> {
+        let version_dir = version_path(&self.version.to_string());
+
         // The temp file lives inside the version directory so that the data directory root only
         // ever contains version directories and the global version file, see [`lock_file_path`].
         let named_temp_file = NamedTempFile::new_in(&version_dir)?;
@@ -296,16 +333,7 @@ impl Installer<'_> {
             patch_for_nixos(self.version, &temp_path)?;
         }
 
-        // Windows requires that the old file be moved out of the way first.
-        if cfg!(target_os = "windows") {
-            let temp_path =
-                NamedTempFile::new_in(&version_dir).map(NamedTempFile::into_temp_path)?;
-            fs::rename(&solc_path, &temp_path).unwrap_or_default();
-        }
-
-        temp_path.persist(&solc_path)?;
-
-        Ok(solc_path)
+        Ok(temp_path)
     }
 
     /// Extracts the solc archive at the version specified destination and returns the path to the
@@ -431,6 +459,10 @@ fn ensure_checksum(
 }
 
 #[cfg(test)]
+#[cfg(target_family = "unix")]
+mod regression;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use rand::seq::IndexedRandom;
@@ -439,7 +471,6 @@ mod tests {
     const LATEST: Version = Version::new(0, 8, 36);
 
     #[tokio::test]
-    #[serial_test::serial]
     async fn test_install() {
         let versions = all_releases(platform())
             .await
@@ -452,7 +483,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[serial_test::serial]
     async fn can_install_while_solc_is_running() {
         const WHICH: &str = if cfg!(target_os = "windows") {
             "where"
@@ -501,7 +531,6 @@ mod tests {
     /// installed binary on every install caused "text file busy" (`ETXTBSY`) errors when parallel
     /// processes installed and executed the same solc version.
     #[cfg(target_family = "unix")]
-    #[serial_test::serial]
     #[test]
     fn install_reuses_existing_binary_while_running() {
         let version: Version = "0.8.19".parse().unwrap();
@@ -538,7 +567,6 @@ mod tests {
     }
 
     /// Ensures that an existing binary that does not match the expected checksum is replaced.
-    #[serial_test::serial]
     #[test]
     fn install_replaces_corrupt_binary() {
         let version: Version = "0.8.21".parse().unwrap();
@@ -557,7 +585,6 @@ mod tests {
     }
 
     /// The lock file must never be removed, see [`try_lock_file`].
-    #[serial_test::serial]
     #[test]
     fn lock_file_is_not_removed() {
         let version: Version = "0.8.13".parse().unwrap();
@@ -573,7 +600,6 @@ mod tests {
     }
 
     #[cfg(feature = "blocking")]
-    #[serial_test::serial]
     #[test]
     fn blocking_test_install() {
         let versions = crate::releases::blocking_all_releases(platform::platform())
@@ -584,7 +610,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[serial_test::serial]
     async fn test_version() {
         let version = "0.8.10".parse().unwrap();
         install(&version).await.unwrap();
@@ -598,7 +623,6 @@ mod tests {
     }
 
     #[cfg(feature = "blocking")]
-    #[serial_test::serial]
     #[test]
     fn blocking_test_latest() {
         blocking_install(&LATEST).unwrap();
@@ -613,7 +637,6 @@ mod tests {
     }
 
     #[cfg(feature = "blocking")]
-    #[serial_test::serial]
     #[test]
     fn blocking_test_version() {
         let version = "0.8.10".parse().unwrap();
@@ -726,7 +749,6 @@ mod tests {
     }
 
     #[cfg(feature = "blocking")]
-    #[serial_test::serial]
     #[test]
     #[ignore]
     fn blocking_test_0_8_31_pre() {
