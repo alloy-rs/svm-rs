@@ -5,6 +5,9 @@ members = ["cargo:."]
 [dist]
 # The preferred dist version to use in CI (Cargo.toml SemVer syntax)
 cargo-dist-version = "0.29.0"
+# release.yml is maintained manually to initialize Aegis before every job's
+# first download. Preserve those steps when updating cargo-dist.
+allow-dirty = ["ci"]
 # CI backends to support
 ci = "github"
 # The installers to generate for each app
@@ -47,3 +50,12 @@ gcc-aarch64-linux-gnu = { version = '*', targets = [
     "aarch64-unknown-linux-gnu",
     "aarch64-unknown-linux-musl",
 ] }
+
+# Aegis supports native Linux and Apple Silicon hosts, not job containers or
+# Intel macOS hosts. Cross-compile the Intel macOS artifact on Apple Silicon.
+[dist.github-custom-runners]
+aarch64-apple-darwin = "macos-14"
+x86_64-apple-darwin = "macos-14"
+aarch64-unknown-linux-gnu = "ubuntu-22.04-arm"
+x86_64-unknown-linux-gnu = "ubuntu-22.04"
+x86_64-unknown-linux-musl = "ubuntu-22.04"
