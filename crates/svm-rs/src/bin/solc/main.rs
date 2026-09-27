@@ -73,9 +73,9 @@ fn exec(cmd: &mut Command) -> io::Result<ExitStatus> {
     }
 }
 
-// Closing the installer's write handle does not close duplicates inherited by concurrently forked
-// children. Retry only a rejected launch, for at most 310 ms; a successfully executed program is
-// never rerun. This protects the svm solc wrapper, not consumers launching cached solc directly.
+// Older svm-rs versions could publish a binary while a concurrently forked child still held a
+// duplicate of the installer's write handle. Retry only a rejected launch, for at most 310 ms; a
+// successfully executed program is never rerun.
 fn retry_busy<T>(mut launch: impl FnMut() -> io::Result<T>) -> io::Result<T> {
     for delay in [10, 20, 40, 80, 160] {
         match launch() {

@@ -16,6 +16,9 @@ use tempfile::NamedTempFile;
 #[cfg(target_family = "unix")]
 use std::{fs::Permissions, os::unix::fs::PermissionsExt};
 
+#[cfg(any(target_os = "linux", target_os = "android"))]
+use std::process::Stdio;
+
 /// The timeout to use for requests to the source (10 minutes).
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(600);
 
@@ -316,7 +319,7 @@ impl Installer<'_> {
         let version_dir = version_path(&version);
         let solc_path = version_binary(&version);
 
-        // Preparing the file in a separate scope ensures this process's writable handle is closed
+        // Preparing the file in a separate scope ensures that no writable handle remains open
         // before the executable becomes visible to consumers.
         let temp_path = self.prepare()?;
 
@@ -331,7 +334,7 @@ impl Installer<'_> {
         Ok(solc_path)
     }
 
-    /// Returns a fully written, patched temporary executable with no writable handle owned here.
+    /// Returns a fully written, patched temporary executable that is not open for writing anywhere.
     fn prepare(self) -> Result<tempfile::TempPath, SvmError> {
         let version_dir = version_path(&self.version.to_string());
 
@@ -353,6 +356,9 @@ impl Installer<'_> {
             patch_for_nixos(self.version, &temp_path)?;
         }
 
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        wait_until_executable(&temp_path)?;
+
         Ok(temp_path)
     }
 
@@ -370,6 +376,42 @@ impl Installer<'_> {
         std::fs::rename(version_path.join("solc.exe"), &solc_path)?;
 
         Ok(solc_path)
+    }
+}
+
+/// Waits until the prepared binary at `path` can be executed, so that it is never published while
+/// busy.
+///
+/// Closing the temporary file is not enough: a child forked by another thread while the file was
+/// open for writing holds a duplicate of the write handle until it execs, and Linux refuses to
+/// execute a file that is open for writing anywhere (`ETXTBSY`). A launch probe observes exactly
+/// that condition; a probe that launches is killed right away.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn wait_until_executable(path: &Path) -> Result<(), SvmError> {
+    let mut delays = [1, 2, 5, 10, 20, 50, 100, 200]
+        .map(Duration::from_millis)
+        .into_iter();
+    loop {
+        let probe = Command::new(path)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn();
+        match probe {
+            Ok(mut child) => {
+                let _ = child.kill();
+                child.wait()?;
+                return Ok(());
+            }
+            Err(err) if err.kind() == ErrorKind::ExecutableFileBusy => match delays.next() {
+                Some(delay) => std::thread::sleep(delay),
+                // A writer that outlives the retries, e.g. a forked child that never execs, would
+                // make the published binary unusable: fail so the install retries with a new file.
+                None => return Err(err.into()),
+            },
+            // Other launch errors do not depend on concurrent writers; leave them to the caller.
+            Err(_) => return Ok(()),
+        }
     }
 }
 
