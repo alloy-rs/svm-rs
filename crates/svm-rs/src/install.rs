@@ -191,21 +191,24 @@ fn find_reusable_installation_for_platform(
 /// Returns the checksum of the solc binary inside a zip artifact, the format of Windows releases up
 /// to 0.7.1, or `None` for any other artifact.
 #[cfg(target_os = "windows")]
-fn archived_binary_checksum(binbytes: &[u8], artifact: &str) -> Result<Option<Vec<u8>>, SvmError> {
+fn archived_binary_checksum(
+    binbytes: &[u8],
+    artifact: &str,
+) -> Result<Option<sha2::digest::Output<sha2::Sha256>>, SvmError> {
     if !artifact.ends_with(".zip") {
         return Ok(None);
     }
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(binbytes))?;
-    let mut solc = Vec::new();
-    archive.by_name("solc.exe")?.read_to_end(&mut solc)?;
-    Ok(Some(sha2::Sha256::digest(&solc).to_vec()))
+    let mut hasher = digest_io::IoWrapper(sha2::Sha256::new());
+    std::io::copy(&mut archive.by_name("solc.exe")?, &mut hasher)?;
+    Ok(Some(hasher.0.finalize()))
 }
 
 #[cfg(not(target_os = "windows"))]
 const fn archived_binary_checksum(
     _binbytes: &[u8],
     _artifact: &str,
-) -> Result<Option<Vec<u8>>, SvmError> {
+) -> Result<Option<sha2::digest::Output<sha2::Sha256>>, SvmError> {
     Ok(None)
 }
 
