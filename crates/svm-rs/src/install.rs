@@ -142,8 +142,9 @@ pub async fn install(version: &Version) -> Result<PathBuf, SvmError> {
 /// executable for writing.
 ///
 /// Versions requiring a NixOS interpreter patch must go through installation even if their bytes
-/// match: a restored Linux cache can contain an unpatched binary. Patched NixOS binaries and old
-/// Windows zip artifacts do not match the download checksum and are not reused either.
+/// match: a restored Linux cache can contain an unpatched binary. Patched NixOS binaries do not
+/// match the download checksum and are not reused either. Old Windows zip artifacts do not match
+/// it either, so they are only reused once downloaded, see [`do_install_and_retry`].
 fn find_reusable_installation(
     version: &Version,
     expected_checksum: &[u8],
@@ -187,6 +188,27 @@ fn find_reusable_installation_for_platform(
     Ok(Some(solc_path))
 }
 
+/// Returns the checksum of the solc binary inside a zip artifact, the format of Windows releases up
+/// to 0.7.1, or `None` for any other artifact.
+#[cfg(target_os = "windows")]
+fn archived_binary_checksum(binbytes: &[u8], artifact: &str) -> Result<Option<Vec<u8>>, SvmError> {
+    if !artifact.ends_with(".zip") {
+        return Ok(None);
+    }
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(binbytes))?;
+    let mut solc = Vec::new();
+    archive.by_name("solc.exe")?.read_to_end(&mut solc)?;
+    Ok(Some(sha2::Sha256::digest(&solc).to_vec()))
+}
+
+#[cfg(not(target_os = "windows"))]
+const fn archived_binary_checksum(
+    _binbytes: &[u8],
+    _artifact: &str,
+) -> Result<Option<Vec<u8>>, SvmError> {
+    Ok(None)
+}
+
 /// Shared by cache reuse and installation so neither path can skip required interpreter patching.
 fn requires_nixos_patch(version: &Version, is_nixos: bool) -> bool {
     is_nixos && *version >= NIXOS_MIN_PATCH_VERSION && *version <= NIXOS_MAX_PATCH_VERSION
@@ -202,6 +224,11 @@ fn do_install_and_retry(
     artifact: &str,
     expected_checksum: &[u8],
 ) -> Result<PathBuf, SvmError> {
+    // Windows zip artifacts are checksummed as archives: compare an existing installation with the
+    // binary inside the downloaded archive instead, so that a binary and its DLLs that are in use
+    // are not overwritten, which Windows refuses.
+    let archived_checksum = archived_binary_checksum(binbytes, artifact)?;
+    let expected_checksum = archived_checksum.as_deref().unwrap_or(expected_checksum);
     let mut retries = 0;
 
     loop {
@@ -808,6 +835,27 @@ mod tests {
                 .as_ref()
                 .contains("0.7.1")
         );
+    }
+
+    /// Reinstalling a zip release must reuse the binary while it is running instead of overwriting
+    /// it and its DLLs.
+    #[tokio::test]
+    #[cfg(target_os = "windows")]
+    async fn can_reinstall_windows_zip_release_while_running() {
+        let version = "0.7.1".parse().unwrap();
+        let solc_path = install(&version).await.unwrap();
+        // Reading the input from stdin keeps solc running until stdin is closed.
+        let mut child = Command::new(&solc_path)
+            .arg("-")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .unwrap();
+        let reinstalled = install(&version).await;
+        drop(child.stdin.take());
+        child.wait().unwrap();
+        assert_eq!(reinstalled.unwrap(), solc_path);
     }
 
     #[cfg(feature = "blocking")]
