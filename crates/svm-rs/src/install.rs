@@ -16,6 +16,9 @@ use tempfile::NamedTempFile;
 #[cfg(target_family = "unix")]
 use std::{fs::Permissions, os::unix::fs::PermissionsExt};
 
+#[cfg(any(target_os = "linux", target_os = "android"))]
+use std::process::Stdio;
+
 /// The timeout to use for requests to the source (10 minutes).
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(600);
 
@@ -139,8 +142,9 @@ pub async fn install(version: &Version) -> Result<PathBuf, SvmError> {
 /// executable for writing.
 ///
 /// Versions requiring a NixOS interpreter patch must go through installation even if their bytes
-/// match: a restored Linux cache can contain an unpatched binary. Patched NixOS binaries and old
-/// Windows zip artifacts do not match the download checksum and are not reused either.
+/// match: a restored Linux cache can contain an unpatched binary. Patched NixOS binaries do not
+/// match the download checksum and are not reused either. Old Windows zip artifacts do not match
+/// it either, so they are only reused once downloaded, see [`do_install_and_retry`].
 fn find_reusable_installation(
     version: &Version,
     expected_checksum: &[u8],
@@ -184,6 +188,30 @@ fn find_reusable_installation_for_platform(
     Ok(Some(solc_path))
 }
 
+/// Returns the checksum of the solc binary inside a zip artifact, the format of Windows releases up
+/// to 0.7.1, or `None` for any other artifact.
+#[cfg(target_os = "windows")]
+fn archived_binary_checksum(
+    binbytes: &[u8],
+    artifact: &str,
+) -> Result<Option<sha2::digest::Output<sha2::Sha256>>, SvmError> {
+    if !artifact.ends_with(".zip") {
+        return Ok(None);
+    }
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(binbytes))?;
+    let mut hasher = digest_io::IoWrapper(sha2::Sha256::new());
+    std::io::copy(&mut archive.by_name("solc.exe")?, &mut hasher)?;
+    Ok(Some(hasher.0.finalize()))
+}
+
+#[cfg(not(target_os = "windows"))]
+const fn archived_binary_checksum(
+    _binbytes: &[u8],
+    _artifact: &str,
+) -> Result<Option<sha2::digest::Output<sha2::Sha256>>, SvmError> {
+    Ok(None)
+}
+
 /// Shared by cache reuse and installation so neither path can skip required interpreter patching.
 fn requires_nixos_patch(version: &Version, is_nixos: bool) -> bool {
     is_nixos && *version >= NIXOS_MIN_PATCH_VERSION && *version <= NIXOS_MAX_PATCH_VERSION
@@ -199,6 +227,11 @@ fn do_install_and_retry(
     artifact: &str,
     expected_checksum: &[u8],
 ) -> Result<PathBuf, SvmError> {
+    // Windows zip artifacts are checksummed as archives: compare an existing installation with the
+    // binary inside the downloaded archive instead, so that a binary and its DLLs that are in use
+    // are not overwritten, which Windows refuses.
+    let archived_checksum = archived_binary_checksum(binbytes, artifact)?;
+    let expected_checksum = archived_checksum.as_deref().unwrap_or(expected_checksum);
     let mut retries = 0;
 
     loop {
@@ -316,7 +349,7 @@ impl Installer<'_> {
         let version_dir = version_path(&version);
         let solc_path = version_binary(&version);
 
-        // Preparing the file in a separate scope ensures this process's writable handle is closed
+        // Preparing the file in a separate scope ensures that no writable handle remains open
         // before the executable becomes visible to consumers.
         let temp_path = self.prepare()?;
 
@@ -331,7 +364,7 @@ impl Installer<'_> {
         Ok(solc_path)
     }
 
-    /// Returns a fully written, patched temporary executable with no writable handle owned here.
+    /// Returns a fully written, patched temporary executable that is not open for writing anywhere.
     fn prepare(self) -> Result<tempfile::TempPath, SvmError> {
         let version_dir = version_path(&self.version.to_string());
 
@@ -353,6 +386,9 @@ impl Installer<'_> {
             patch_for_nixos(self.version, &temp_path)?;
         }
 
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        wait_until_executable(&temp_path)?;
+
         Ok(temp_path)
     }
 
@@ -370,6 +406,42 @@ impl Installer<'_> {
         std::fs::rename(version_path.join("solc.exe"), &solc_path)?;
 
         Ok(solc_path)
+    }
+}
+
+/// Waits until the prepared binary at `path` can be executed, so that it is never published while
+/// busy.
+///
+/// Closing the temporary file is not enough: a child forked by another thread while the file was
+/// open for writing holds a duplicate of the write handle until it execs, and Linux refuses to
+/// execute a file that is open for writing anywhere (`ETXTBSY`). A launch probe observes exactly
+/// that condition; a probe that launches is killed right away.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn wait_until_executable(path: &Path) -> Result<(), SvmError> {
+    let mut delays = [1, 2, 5, 10, 20, 50, 100, 200]
+        .map(Duration::from_millis)
+        .into_iter();
+    loop {
+        let probe = Command::new(path)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn();
+        match probe {
+            Ok(mut child) => {
+                let _ = child.kill();
+                child.wait()?;
+                return Ok(());
+            }
+            Err(err) if err.kind() == ErrorKind::ExecutableFileBusy => match delays.next() {
+                Some(delay) => std::thread::sleep(delay),
+                // A writer that outlives the retries, e.g. a forked child that never execs, would
+                // make the published binary unusable: fail so the install retries with a new file.
+                None => return Err(err.into()),
+            },
+            // Other launch errors do not depend on concurrent writers; leave them to the caller.
+            Err(_) => return Ok(()),
+        }
     }
 }
 
@@ -766,6 +838,27 @@ mod tests {
                 .as_ref()
                 .contains("0.7.1")
         );
+    }
+
+    /// Reinstalling a zip release must reuse the binary while it is running instead of overwriting
+    /// it and its DLLs.
+    #[tokio::test]
+    #[cfg(target_os = "windows")]
+    async fn can_reinstall_windows_zip_release_while_running() {
+        let version = "0.7.1".parse().unwrap();
+        let solc_path = install(&version).await.unwrap();
+        // Reading the input from stdin keeps solc running until stdin is closed.
+        let mut child = Command::new(&solc_path)
+            .arg("-")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .unwrap();
+        let reinstalled = install(&version).await;
+        drop(child.stdin.take());
+        child.wait().unwrap();
+        assert_eq!(reinstalled.unwrap(), solc_path);
     }
 
     #[cfg(feature = "blocking")]

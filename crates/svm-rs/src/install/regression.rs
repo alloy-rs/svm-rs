@@ -3,6 +3,7 @@ use super::*;
 use std::os::unix::fs::MetadataExt;
 #[cfg(target_os = "linux")]
 use std::{
+    os::unix::process::CommandExt,
     process::{Child, Stdio},
     sync::atomic::{AtomicBool, Ordering},
     thread,
@@ -286,4 +287,71 @@ fn publication_with_independent_readers() {
             READERS * EXECUTIONS
         );
     });
+}
+
+// A child forked by another thread holds duplicates of all descriptors that were open at the fork
+// until it execs, including the installer's temporary write handle. Delay the exec of such children
+// to widen that window: an installed binary must be executable as soon as the install returns.
+#[cfg(target_os = "linux")]
+#[test]
+fn publication_with_forking_thread() {
+    const INSTALLS: usize = 100;
+    let version = Version::new(99, 0, 6);
+    setup_version(&version.to_string()).unwrap();
+    let bytes = executable();
+    let done = AtomicBool::new(false);
+    thread::scope(|scope| {
+        let forker = scope.spawn(|| {
+            let mut forks = 0;
+            while !done.load(Ordering::Relaxed) {
+                let mut cmd = Command::new("true");
+                // SAFETY: the hook only sleeps, which is async-signal-safe.
+                unsafe {
+                    cmd.pre_exec(|| {
+                        thread::sleep(Duration::from_millis(2));
+                        Ok(())
+                    });
+                }
+                if !cmd.status().is_ok_and(|status| status.success()) {
+                    return None;
+                }
+                forks += 1;
+            }
+            Some(forks)
+        });
+        let launches = (0..INSTALLS)
+            .map(|_| do_install(&version, &bytes, "").map(|path| Command::new(path).status()))
+            .collect::<Vec<_>>();
+        // Always stop the forker before asserting results, so a failed install cannot hang the test.
+        done.store(true, Ordering::Relaxed);
+        let forks = forker.join().unwrap().expect("forker failed");
+        let busy = launches
+            .iter()
+            .filter(|launch| {
+                matches!(launch, Ok(Err(err)) if err.kind() == ErrorKind::ExecutableFileBusy)
+            })
+            .count();
+        eprintln!("{INSTALLS} installs, {forks} concurrent forks, {busy} busy launches");
+        for launch in launches {
+            assert!(launch.unwrap().unwrap().success());
+        }
+    });
+}
+
+// A writer that is never closed, e.g. held by a forked child that never execs, must neither block
+// the installation forever nor be published: the error makes the installer retry with a new file.
+#[cfg(target_os = "linux")]
+#[test]
+fn persistent_writer_is_not_published() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut writer, path) = NamedTempFile::new_in(dir.path()).unwrap().into_parts();
+    writer.write_all(&executable()).unwrap();
+    writer
+        .set_permissions(Permissions::from_mode(0o755))
+        .unwrap();
+    let err = wait_until_executable(&path).unwrap_err();
+    assert!(matches!(&err, SvmError::IoError(err) if err.kind() == ErrorKind::ExecutableFileBusy));
+    assert!(err.to_string().to_lowercase().contains("text file busy"));
+    drop(writer);
+    wait_until_executable(&path).unwrap();
 }
