@@ -13,7 +13,6 @@ authors = [
 ]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/alloy-rs/svm-rs"
-homepage = "https://github.com/alloy-rs/svm-rs"
 
 [workspace.lints.clippy]
 dbg_macro = "warn"
