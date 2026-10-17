@@ -160,7 +160,7 @@ mod hex_string {
     where
         D: Deserializer<'de>,
     {
-        const_hex::decode(String::deserialize(deserializer)?).map_err(de::Error::custom)
+        hex::decode(String::deserialize(deserializer)?).map_err(de::Error::custom)
     }
 
     pub fn serialize<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
@@ -168,7 +168,7 @@ mod hex_string {
         S: Serializer,
         T: AsRef<[u8]>,
     {
-        serializer.serialize_str(&const_hex::encode_prefixed(value))
+        serializer.serialize_str(&hex::encode_prefixed(value))
     }
 }
 

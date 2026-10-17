@@ -34,7 +34,7 @@ vergen = { version = "8", optional = true, features = [
 ] }
 
 [dependencies]
-const-hex.workspace = true
+hex.workspace = true
 dirs = "7.0"
 reqwest = { workspace = true, default-features = false, features = ["json"] }
 semver = { workspace = true, features = ["serde"] }

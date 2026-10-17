@@ -40,7 +40,7 @@ all = "warn"
 [workspace.dependencies]
 svm = { package = "svm-rs", version = "0.5.30", path = "crates/svm-rs", default-features = false }
 
-const-hex = "1.10"
+hex = { package = "const-hex", version = "1.10" }
 semver = "1"
 serde = "1"
 serde_json = "1"

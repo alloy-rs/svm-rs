@@ -80,7 +80,7 @@ fn add_build_info_constants(output: &mut String, releases: &Releases, platform: 
             version.major, version.minor, version.patch
         ));
 
-        let sha256 = const_hex::encode(&build.sha256);
+        let sha256 = hex::encode(&build.sha256);
         let checksum_name = format!("{version_name}_CHECKSUM");
 
         version_idents.push(version_name);
@@ -116,7 +116,7 @@ pub fn get_checksum(version: &semver::Version) -> Option<Vec<u8>> {{
         {},
         _ => return None
     }};
-    Some(const_hex::decode(checksum).unwrap())
+    Some(hex::decode(checksum).unwrap())
 }}
 "#,
         checksum_match_arms.join(",\n        ")
