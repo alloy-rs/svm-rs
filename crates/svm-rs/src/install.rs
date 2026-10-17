@@ -543,8 +543,8 @@ fn ensure_checksum(
     if checksum != expected_checksum {
         return Err(SvmError::ChecksumMismatch {
             version: version.to_string(),
-            expected: hex::encode(expected_checksum),
-            actual: hex::encode(checksum),
+            expected: const_hex::encode(expected_checksum),
+            actual: const_hex::encode(checksum),
         });
     }
     Ok(())
