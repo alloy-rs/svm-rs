@@ -560,7 +560,7 @@ mod tests {
     use rand::seq::IndexedRandom;
 
     #[allow(unused)]
-    const LATEST: Version = Version::new(0, 8, 37);
+    const LATEST: Version = Version::new(0, 8, 38);
 
     #[tokio::test]
     async fn test_install() {
