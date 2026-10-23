@@ -1672,6 +1672,7 @@ dependencies = [
  "itertools",
  "rand 0.9.4",
  "reqwest",
+ "rustls-webpki",
  "semver",
  "serde",
  "serde_json",
@@ -1681,6 +1682,7 @@ dependencies = [
  "tokio",
  "url",
  "vergen",
+ "webpki-root-certs",
  "zip",
 ]
 

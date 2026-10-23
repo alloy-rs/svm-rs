@@ -44,6 +44,9 @@ tempfile = "3.10"
 thiserror = ">=1.0, <3.0"
 url = "2.5"
 
+# Require the patched TLS verifier even when a downstream lockfile is used.
+rustls-webpki = { version = "0.103.16", default-features = false, optional = true }
+
 # CLI
 anyhow = { version = "1.0", optional = true }
 clap = { version = "4", features = ["derive"], optional = true }
@@ -55,6 +58,10 @@ tokio = { version = "1", features = [
     "rt-multi-thread",
     "macros",
 ], optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# rustls-platform-verifier uses bundled roots on WebAssembly.
+webpki-root-certs = { version = "1.0.10", optional = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 digest-io = "0.1"
@@ -70,7 +77,7 @@ default = ["rustls", "cli", "solc"]
 
 # lib
 openssl = ["reqwest/native-tls"]
-rustls = ["reqwest/rustls"]
+rustls = ["reqwest/rustls", "dep:rustls-webpki", "dep:webpki-root-certs"]
 blocking = ["reqwest/blocking"]
 
 # bin

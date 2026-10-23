@@ -14,6 +14,12 @@
 use semver::Version;
 use std::fs;
 
+// These dependencies enforce patched minimum versions for reqwest's TLS stack.
+#[cfg(feature = "rustls")]
+use webpki as _;
+#[cfg(all(feature = "rustls", target_arch = "wasm32"))]
+use webpki_root_certs as _;
+
 mod error;
 pub use error::SvmError;
 
