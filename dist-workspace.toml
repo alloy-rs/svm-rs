@@ -33,8 +33,8 @@ precise-builds = true
 features = ["cli", "solc"]
 # Whether dist should create a Github Release or use an existing draft
 create-release = true
-# Which actions to run on pull requests
-pr-run-mode = "skip"
+# Exercise release builds and upload artifacts on pull requests without publishing.
+pr-run-mode = "upload"
 # Whether CI should trigger releases with dispatches instead of tag pushes
 dispatch-releases = false
 # Which phase dist should use to create the GitHub release
@@ -44,12 +44,6 @@ install-updater = false
 # Path that installers should place binaries in
 install-path = ["$XDG_BIN_HOME/", "$XDG_DATA_HOME/../bin", "~/.local/bin"]
 rust-toolchain-version = "stable"
-
-[dist.dependencies.apt]
-gcc-aarch64-linux-gnu = { version = '*', targets = [
-    "aarch64-unknown-linux-gnu",
-    "aarch64-unknown-linux-musl",
-] }
 
 # Aegis supports native Linux and Apple Silicon hosts, not job containers or
 # Intel macOS hosts. Cross-compile the Intel macOS artifact on Apple Silicon.

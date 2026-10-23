@@ -39,11 +39,14 @@ permissions: {}
 # If there's a prerelease-style suffix to the version, then the release(s)
 # will be marked as a prerelease.
 on:
-  # Validate the protected runner matrix without publishing or building a release.
+  # Build and package every target without publishing a release.
   pull_request:
     paths:
       - .github/workflows/release.yml
       - dist-workspace.toml
+      - Cargo.toml
+      - Cargo.lock
+      - crates/**
   push:
     tags:
       - '**[0-9]+.[0-9]+.[0-9]+*'
@@ -142,11 +145,18 @@ jobs:
           submodules: recursive
       - name: Use rustup to set correct Rust version
         run: rustup update "stable" --no-self-update && rustup default "stable"
-      - name: Install dist
+      - name: Install dist (Unix)
+        if: runner.os != 'Windows'
         shell: bash
         env:
           INSTALL_DIST_RUN: ${{ matrix.install_dist.run }}
-        run: eval "$INSTALL_DIST_RUN"
+        run: bash -e -o pipefail -c "$INSTALL_DIST_RUN"
+      - name: Install dist (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          INSTALL_DIST_RUN: ${{ matrix.install_dist.run }}
+        run: Invoke-Expression $env:INSTALL_DIST_RUN
       # Get the dist-manifest
       - name: Fetch local artifacts
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -154,12 +164,20 @@ jobs:
           pattern: artifacts-*
           path: target/distrib/
           merge-multiple: true
-      - name: Install dependencies
+      - name: Install dependencies (Unix)
+        if: runner.os != 'Windows' && matrix.packages_install != ''
+        shell: bash
         env:
           PACKAGES_INSTALL: ${{ matrix.packages_install }}
-        run: |
-          $PACKAGES_INSTALL
+        run: bash -e -o pipefail -c "$PACKAGES_INSTALL"
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows' && matrix.packages_install != ''
+        shell: pwsh
+        env:
+          PACKAGES_INSTALL: ${{ matrix.packages_install }}
+        run: Invoke-Expression $env:PACKAGES_INSTALL
       - name: Build artifacts
+        shell: bash
         env:
           TAG_FLAG: ${{ needs.plan.outputs.tag-flag }}
           DIST_ARGS: ${{ matrix.dist_args }}
@@ -256,8 +274,8 @@ jobs:
       - plan
       - build-local-artifacts
       - build-global-artifacts
-    # Only run if we're "publishing", and only if local and global didn't fail (skipped is fine)
-    if: ${{ always() && needs.plan.outputs.publishing == 'true' && (needs.build-global-artifacts.result == 'skipped' || needs.build-global-artifacts.result == 'success') && (needs.build-local-artifacts.result == 'skipped' || needs.build-local-artifacts.result == 'success') }}
+    # Publish only after every platform and the global artifacts have been built.
+    if: ${{ always() && needs.plan.outputs.publishing == 'true' && needs.build-global-artifacts.result == 'success' && needs.build-local-artifacts.result == 'success' }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     runs-on: "ubuntu-22.04"
