@@ -45,12 +45,6 @@ install-updater = false
 install-path = ["$XDG_BIN_HOME/", "$XDG_DATA_HOME/../bin", "~/.local/bin"]
 rust-toolchain-version = "stable"
 
-[dist.dependencies.apt]
-gcc-aarch64-linux-gnu = { version = '*', targets = [
-    "aarch64-unknown-linux-gnu",
-    "aarch64-unknown-linux-musl",
-] }
-
 # Aegis supports native Linux and Apple Silicon hosts, not job containers or
 # Intel macOS hosts. Cross-compile the Intel macOS artifact on Apple Silicon.
 [dist.github-custom-runners]
