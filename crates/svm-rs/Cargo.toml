@@ -26,11 +26,7 @@ path = "src/bin/solc/main.rs"
 required-features = ["solc"]
 
 [build-dependencies]
-vergen = { version = "8", optional = true, features = [
-    "build",
-    "git",
-    "gitcl",
-] }
+smolgen = { version = "0.1", optional = true, features = ["build", "gitcl"] }
 
 [dependencies]
 hex.workspace = true
@@ -82,6 +78,6 @@ cli = [
     "dep:indicatif",
     "dep:itertools",
     "dep:tokio",
-    "dep:vergen",
+    "dep:smolgen",
 ]
 solc = ["dep:anyhow"]
