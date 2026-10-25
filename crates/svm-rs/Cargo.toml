@@ -26,7 +26,7 @@ path = "src/bin/solc/main.rs"
 required-features = ["solc"]
 
 [build-dependencies]
-smolgen = { version = "0.1.1", git = "https://github.com/alloy-rs/smolgen", rev = "1101d5c55038e15cebde8abc0061763dd61fa21f", optional = true, features = ["build", "gitcl"] }
+smolgen = { version = "0.1.1", optional = true, features = ["build", "gitcl"] }
 
 [dependencies]
 hex.workspace = true
