@@ -1,8 +1,8 @@
 use crate::{error::SvmError, platform::Platform};
-use reqwest::get;
+use reqwest::StatusCode;
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, sync::LazyLock};
+use std::{collections::BTreeMap, sync::LazyLock, time::Duration};
 use url::Url;
 
 // Updating new releases:
@@ -172,6 +172,105 @@ mod hex_string {
     }
 }
 
+/// How release lists are fetched: per-request timeout and retries for transient failures.
+#[derive(Clone, Copy, Debug)]
+struct FetchPolicy {
+    /// Timeout for a single request, including reading the body.
+    timeout: Duration,
+    /// Total number of attempts, including the first one.
+    attempts: u32,
+    /// Delay before the first retry; doubled after each failed attempt.
+    retry_delay: Duration,
+}
+
+const FETCH_POLICY: FetchPolicy = FetchPolicy {
+    timeout: Duration::from_secs(30),
+    attempts: 4,
+    retry_delay: Duration::from_secs(1),
+};
+
+impl FetchPolicy {
+    /// Returns the delay before retrying after the given failed attempt (0-based).
+    fn backoff(&self, attempt: u32) -> Duration {
+        self.retry_delay.saturating_mul(1 << attempt.min(16))
+    }
+}
+
+/// Returns `true` if a request that failed with this status may succeed when retried.
+fn is_retryable_status(status: StatusCode) -> bool {
+    status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error()
+}
+
+/// Returns `true` if a request that failed with this error may succeed when retried.
+///
+/// Decoding errors on a successful response are not retried.
+fn is_retryable_error(err: &SvmError) -> bool {
+    match err {
+        SvmError::UnsuccessfulResponse(_, status) => is_retryable_status(*status),
+        SvmError::ReqwestError(err) => err.is_connect() || err.is_timeout() || err.is_request(),
+        _ => false,
+    }
+}
+
+/// Fetches and decodes a release list, retrying transient failures.
+async fn fetch_releases(url: &str) -> Result<Releases, SvmError> {
+    fetch_releases_with(url, FETCH_POLICY).await
+}
+
+async fn fetch_releases_with(url: &str, policy: FetchPolicy) -> Result<Releases, SvmError> {
+    let client = reqwest::Client::builder().timeout(policy.timeout).build()?;
+    let mut attempt = 0;
+    loop {
+        let result = async {
+            let res = client.get(url).send().await?;
+            let status = res.status();
+            if !status.is_success() {
+                return Err(SvmError::UnsuccessfulResponse(res.url().clone(), status));
+            }
+            Ok(res.json::<Releases>().await?)
+        }
+        .await;
+        match result {
+            Err(err) if attempt + 1 < policy.attempts && is_retryable_error(&err) => {
+                tokio::time::sleep(policy.backoff(attempt)).await;
+                attempt += 1;
+            }
+            result => return result,
+        }
+    }
+}
+
+/// Blocking version of [`fetch_releases`].
+#[cfg(feature = "blocking")]
+fn blocking_fetch_releases(url: &str) -> Result<Releases, SvmError> {
+    blocking_fetch_releases_with(url, FETCH_POLICY)
+}
+
+#[cfg(feature = "blocking")]
+fn blocking_fetch_releases_with(url: &str, policy: FetchPolicy) -> Result<Releases, SvmError> {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(policy.timeout)
+        .build()?;
+    let mut attempt = 0;
+    loop {
+        let result = (|| {
+            let res = client.get(url).send()?;
+            let status = res.status();
+            if !status.is_success() {
+                return Err(SvmError::UnsuccessfulResponse(res.url().clone(), status));
+            }
+            Ok(res.json::<Releases>()?)
+        })();
+        match result {
+            Err(err) if attempt + 1 < policy.attempts && is_retryable_error(&err) => {
+                std::thread::sleep(policy.backoff(attempt));
+                attempt += 1;
+            }
+            result => return result,
+        }
+    }
+}
+
 /// Blocking version of [`all_releases`].
 #[cfg(feature = "blocking")]
 pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SvmError> {
@@ -180,14 +279,12 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SvmError> {
             // Prior to version 0.8.31, releases for Linux arm64 builds was provided by the
             // `nikitastupin/solc` repository. From 0.8.31 (inclusive) and onwards, official
             // binary releases are provided by the Solidity project.
-            let mut releases =
-                reqwest::blocking::get(LINUX_AARCH64_RELEASES_URL)?.json::<Releases>()?;
+            let mut releases = blocking_fetch_releases(LINUX_AARCH64_RELEASES_URL)?;
             releases.retain_versions(|v| *v < LINUX_AARCH64_BINARIES);
             fix_build_prerelease(&mut releases);
-            let mut official = reqwest::blocking::get(format!(
+            let mut official = blocking_fetch_releases(&format!(
                 "{SOLC_RELEASES_URL}/{LINUX_AARCH64_PLATFORM}/list.json",
-            ))?
-            .json::<Releases>()?;
+            ))?;
             // Filtering older releases isn't strinctly necessary here, but do it just in case
             // Solidity retroactively starts adding older release binaries for linux-aarch64.
             official.retain_versions(|v| *v >= LINUX_AARCH64_BINARIES);
@@ -204,35 +301,30 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SvmError> {
             // require Rosetta support.
             //
             // Note: Since 0.8.24 universal macosx releases are available
-            let native = reqwest::blocking::get(MACOS_AARCH64_RELEASES_URL)?.json::<Releases>()?;
-            let mut releases = reqwest::blocking::get(format!(
+            let native = blocking_fetch_releases(MACOS_AARCH64_RELEASES_URL)?;
+            let mut releases = blocking_fetch_releases(&format!(
                 "{}/{}/list.json",
                 SOLC_RELEASES_URL,
                 Platform::MacOsAmd64,
-            ))?
-            .json::<Releases>()?;
+            ))?;
             releases
                 .retain_versions(|v| *v < MACOS_AARCH64_NATIVE || *v > UNIVERSAL_MACOS_BINARIES);
             releases.extend(native);
             Ok(releases)
         }
-        Platform::AndroidAarch64 => {
-            Ok(reqwest::blocking::get(ANDROID_AARCH64_RELEASES_URL)?.json::<Releases>()?)
-        }
+        Platform::AndroidAarch64 => blocking_fetch_releases(ANDROID_AARCH64_RELEASES_URL),
         Platform::WindowsAarch64 => {
             // Windows ARM64 uses x64 binaries via emulation
             // Solidity does not provide native ARM64 Windows binaries
-            let releases = reqwest::blocking::get(format!(
+            let releases = blocking_fetch_releases(&format!(
                 "{SOLC_RELEASES_URL}/{}/list.json",
                 Platform::WindowsAmd64
-            ))?
-            .json::<Releases>()?;
+            ))?;
             Ok(unified_releases(releases, platform))
         }
         _ => {
             let releases =
-                reqwest::blocking::get(format!("{SOLC_RELEASES_URL}/{platform}/list.json"))?
-                    .json::<Releases>()?;
+                blocking_fetch_releases(&format!("{SOLC_RELEASES_URL}/{platform}/list.json"))?;
             Ok(unified_releases(releases, platform))
         }
     }
@@ -245,17 +337,12 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SvmError> {
             // Prior to version 0.8.31, releases for Linux arm64 builds was provided by the
             // `nikitastupin/solc` repository. From 0.8.31 (inclusive) and onwards, official
             // binary releases are provided by the Solidity project.
-            let mut releases = get(LINUX_AARCH64_RELEASES_URL)
-                .await?
-                .json::<Releases>()
-                .await?;
+            let mut releases = fetch_releases(LINUX_AARCH64_RELEASES_URL).await?;
             releases.retain_versions(|v| *v < LINUX_AARCH64_BINARIES);
             fix_build_prerelease(&mut releases);
-            let mut official = get(format!(
+            let mut official = fetch_releases(&format!(
                 "{SOLC_RELEASES_URL}/{LINUX_AARCH64_PLATFORM}/list.json",
             ))
-            .await?
-            .json::<Releases>()
             .await?;
             // Filtering older releases isn't strinctly necessary here, but do it just in case
             // Solidity retroactively starts adding older release binaries for linux-aarch64.
@@ -271,17 +358,12 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SvmError> {
             //
             // 2. For version <= 0.8.4 we fetch releases from https://binaries.soliditylang.org and
             // require Rosetta support.
-            let native = get(MACOS_AARCH64_RELEASES_URL)
-                .await?
-                .json::<Releases>()
-                .await?;
-            let mut releases = get(format!(
+            let native = fetch_releases(MACOS_AARCH64_RELEASES_URL).await?;
+            let mut releases = fetch_releases(&format!(
                 "{}/{}/list.json",
                 SOLC_RELEASES_URL,
                 Platform::MacOsAmd64,
             ))
-            .await?
-            .json::<Releases>()
             .await?;
             releases
                 .retain_versions(|v| *v < MACOS_AARCH64_NATIVE || *v > UNIVERSAL_MACOS_BINARIES);
@@ -289,28 +371,21 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SvmError> {
             releases.extend(native);
             Ok(releases)
         }
-        Platform::AndroidAarch64 => Ok(get(ANDROID_AARCH64_RELEASES_URL)
-            .await?
-            .json::<Releases>()
-            .await?),
+        Platform::AndroidAarch64 => fetch_releases(ANDROID_AARCH64_RELEASES_URL).await,
         Platform::WindowsAarch64 => {
             // Windows ARM64 uses x64 binaries via emulation
             // Solidity does not provide native ARM64 Windows binaries
-            let releases = get(format!(
+            let releases = fetch_releases(&format!(
                 "{SOLC_RELEASES_URL}/{}/list.json",
                 Platform::WindowsAmd64
             ))
-            .await?
-            .json::<Releases>()
             .await?;
 
             Ok(unified_releases(releases, platform))
         }
         _ => {
-            let releases = get(format!("{SOLC_RELEASES_URL}/{platform}/list.json"))
-                .await?
-                .json::<Releases>()
-                .await?;
+            let releases =
+                fetch_releases(&format!("{SOLC_RELEASES_URL}/{platform}/list.json")).await?;
 
             Ok(unified_releases(releases, platform))
         }
@@ -440,6 +515,144 @@ mod tests {
             ))
             .unwrap(),
         )
+    }
+
+    /// Response served by [`serve`].
+    #[derive(Clone)]
+    enum Reply {
+        /// Respond with this status code and body.
+        Status(u16, &'static str),
+        /// Read the request and never respond.
+        Hang,
+    }
+
+    const LIST_JSON: &str = r#"{"builds":[],"releases":{"0.8.0":"solc-v0.8.0"}}"#;
+
+    /// Serves `replies` in order, one per connection, on a local port. Returns the list URL and
+    /// a counter of accepted requests.
+    fn serve(replies: Vec<Reply>) -> (String, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
+        use std::{
+            io::{BufRead, BufReader, Write},
+            net::TcpListener,
+            sync::{Arc, atomic::AtomicUsize, atomic::Ordering},
+        };
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/list.json", listener.local_addr().unwrap());
+        let count = Arc::new(AtomicUsize::new(0));
+        let counter = count.clone();
+        std::thread::spawn(move || {
+            let mut hung = Vec::new();
+            for reply in replies {
+                let (mut stream, _) = listener.accept().unwrap();
+                counter.fetch_add(1, Ordering::SeqCst);
+                let mut reader = BufReader::new(stream.try_clone().unwrap());
+                let mut line = String::new();
+                while reader.read_line(&mut line).unwrap() > 2 {
+                    line.clear();
+                }
+                match reply {
+                    Reply::Status(code, body) => {
+                        let _ = write!(
+                            stream,
+                            "HTTP/1.1 {code} X\r\ncontent-type: application/json\r\n\
+                             content-length: {}\r\nconnection: close\r\n\r\n{body}",
+                            body.len()
+                        );
+                    }
+                    Reply::Hang => hung.push(stream),
+                }
+            }
+            // Keep hung connections open until the client gives up.
+            std::thread::sleep(Duration::from_secs(5));
+            drop(hung);
+        });
+        (url, count)
+    }
+
+    const TEST_POLICY: FetchPolicy = FetchPolicy {
+        timeout: Duration::from_millis(500),
+        attempts: 3,
+        retry_delay: Duration::from_millis(10),
+    };
+
+    fn count(c: &std::sync::atomic::AtomicUsize) -> usize {
+        c.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    #[tokio::test]
+    async fn fetch_releases_reports_status() {
+        let (url, _) = serve(vec![Reply::Status(404, "404")]);
+        let err = fetch_releases_with(&url, TEST_POLICY).await.unwrap_err();
+        assert!(
+            matches!(&err, SvmError::UnsuccessfulResponse(u, s) if u.as_str() == url && *s == StatusCode::NOT_FOUND),
+            "{err:?}"
+        );
+        assert!(err.to_string().contains(&url), "{err}");
+    }
+
+    #[tokio::test]
+    async fn fetch_releases_retries_rate_limit_and_server_errors() {
+        let (url, requests) = serve(vec![
+            Reply::Status(429, "429"),
+            Reply::Status(503, "503"),
+            Reply::Status(200, LIST_JSON),
+        ]);
+        let releases = fetch_releases_with(&url, TEST_POLICY).await.unwrap();
+        assert_eq!(releases.into_versions(), vec![Version::new(0, 8, 0)]);
+        assert_eq!(count(&requests), 3);
+    }
+
+    #[tokio::test]
+    async fn fetch_releases_gives_up_after_attempts() {
+        let (url, requests) = serve(vec![Reply::Status(429, "429"); 3]);
+        let err = fetch_releases_with(&url, TEST_POLICY).await.unwrap_err();
+        assert!(
+            matches!(
+                err,
+                SvmError::UnsuccessfulResponse(_, StatusCode::TOO_MANY_REQUESTS)
+            ),
+            "{err:?}"
+        );
+        assert_eq!(count(&requests), 3);
+    }
+
+    #[tokio::test]
+    async fn fetch_releases_times_out_and_retries() {
+        let (url, requests) = serve(vec![Reply::Hang, Reply::Status(200, LIST_JSON)]);
+        let releases = fetch_releases_with(&url, TEST_POLICY).await.unwrap();
+        assert_eq!(releases.releases.len(), 1);
+        assert_eq!(count(&requests), 2);
+    }
+
+    #[tokio::test]
+    async fn fetch_releases_does_not_retry_client_errors() {
+        let (url, requests) = serve(vec![
+            Reply::Status(404, "404"),
+            Reply::Status(200, LIST_JSON),
+        ]);
+        assert!(fetch_releases_with(&url, TEST_POLICY).await.is_err());
+        assert_eq!(count(&requests), 1);
+    }
+
+    #[cfg(feature = "blocking")]
+    #[test]
+    fn blocking_fetch_releases_retries_rate_limit() {
+        let (url, requests) = serve(vec![
+            Reply::Status(429, "429"),
+            Reply::Status(200, LIST_JSON),
+        ]);
+        let releases = blocking_fetch_releases_with(&url, TEST_POLICY).unwrap();
+        assert_eq!(releases.releases.len(), 1);
+        assert_eq!(count(&requests), 2);
+    }
+
+    #[cfg(feature = "blocking")]
+    #[test]
+    fn blocking_fetch_releases_reports_status() {
+        let (url, _) = serve(vec![Reply::Status(429, "429"); 3]);
+        let err = blocking_fetch_releases_with(&url, TEST_POLICY).unwrap_err();
+        assert!(err.to_string().contains("429 Too Many Requests"), "{err}");
+        assert!(err.to_string().contains(&url), "{err}");
     }
 
     #[test]
