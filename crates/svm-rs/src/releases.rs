@@ -16,6 +16,27 @@ use url::Url;
 /// `https://binaries.soliditylang.org/macosx-amd64/list.json`
 const SOLC_RELEASES_URL: &str = "https://binaries.soliditylang.org";
 
+/// Environment variable that replaces `https://binaries.soliditylang.org` as the base URL of
+/// release lists and binaries, e.g. with a mirror for corporate networks or offline CI.
+///
+/// The mirror must keep the same layout: `{base}/{platform}/list.json` and
+/// `{base}/{platform}/{artifact}`. Builds that are not served by `binaries.soliditylang.org`
+/// (linux-amd64 0.4.0 to 0.4.9, linux-aarch64 before 0.8.31, macosx-aarch64 0.8.5 to 0.8.24,
+/// android-aarch64) still use their own URLs.
+pub const SVM_RELEASES_URL: &str = "SVM_RELEASES_URL";
+
+/// Returns the base URL of official releases, honoring [`SVM_RELEASES_URL`].
+fn solc_releases_url() -> String {
+    releases_url_from(std::env::var(SVM_RELEASES_URL).ok())
+}
+
+fn releases_url_from(var: Option<String>) -> String {
+    match var.as_deref().map(str::trim) {
+        Some(url) if !url.is_empty() => url.trim_end_matches('/').to_string(),
+        _ => SOLC_RELEASES_URL.to_string(),
+    }
+}
+
 const OLD_SOLC_RELEASES_DOWNLOAD_PREFIX: &str =
     "https://raw.githubusercontent.com/crytic/solc/master/linux/amd64";
 
@@ -274,6 +295,7 @@ fn blocking_fetch_releases_with(url: &str, policy: FetchPolicy) -> Result<Releas
 /// Blocking version of [`all_releases`].
 #[cfg(feature = "blocking")]
 pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SvmError> {
+    let base = solc_releases_url();
     match platform {
         Platform::LinuxAarch64 => {
             // Prior to version 0.8.31, releases for Linux arm64 builds was provided by the
@@ -282,9 +304,8 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SvmError> {
             let mut releases = blocking_fetch_releases(LINUX_AARCH64_RELEASES_URL)?;
             releases.retain_versions(|v| *v < LINUX_AARCH64_BINARIES);
             fix_build_prerelease(&mut releases);
-            let mut official = blocking_fetch_releases(&format!(
-                "{SOLC_RELEASES_URL}/{LINUX_AARCH64_PLATFORM}/list.json",
-            ))?;
+            let mut official =
+                blocking_fetch_releases(&format!("{base}/{LINUX_AARCH64_PLATFORM}/list.json",))?;
             // Filtering older releases isn't strinctly necessary here, but do it just in case
             // Solidity retroactively starts adding older release binaries for linux-aarch64.
             official.retain_versions(|v| *v >= LINUX_AARCH64_BINARIES);
@@ -302,11 +323,8 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SvmError> {
             //
             // Note: Since 0.8.24 universal macosx releases are available
             let native = blocking_fetch_releases(MACOS_AARCH64_RELEASES_URL)?;
-            let mut releases = blocking_fetch_releases(&format!(
-                "{}/{}/list.json",
-                SOLC_RELEASES_URL,
-                Platform::MacOsAmd64,
-            ))?;
+            let mut releases =
+                blocking_fetch_releases(&format!("{}/{}/list.json", base, Platform::MacOsAmd64,))?;
             releases
                 .retain_versions(|v| *v < MACOS_AARCH64_NATIVE || *v > UNIVERSAL_MACOS_BINARIES);
             releases.extend(native);
@@ -316,15 +334,12 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SvmError> {
         Platform::WindowsAarch64 => {
             // Windows ARM64 uses x64 binaries via emulation
             // Solidity does not provide native ARM64 Windows binaries
-            let releases = blocking_fetch_releases(&format!(
-                "{SOLC_RELEASES_URL}/{}/list.json",
-                Platform::WindowsAmd64
-            ))?;
+            let releases =
+                blocking_fetch_releases(&format!("{base}/{}/list.json", Platform::WindowsAmd64))?;
             Ok(unified_releases(releases, platform))
         }
         _ => {
-            let releases =
-                blocking_fetch_releases(&format!("{SOLC_RELEASES_URL}/{platform}/list.json"))?;
+            let releases = blocking_fetch_releases(&format!("{base}/{platform}/list.json"))?;
             Ok(unified_releases(releases, platform))
         }
     }
@@ -332,6 +347,7 @@ pub fn blocking_all_releases(platform: Platform) -> Result<Releases, SvmError> {
 
 /// Fetch all releases available for the provided platform.
 pub async fn all_releases(platform: Platform) -> Result<Releases, SvmError> {
+    let base = solc_releases_url();
     match platform {
         Platform::LinuxAarch64 => {
             // Prior to version 0.8.31, releases for Linux arm64 builds was provided by the
@@ -340,10 +356,8 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SvmError> {
             let mut releases = fetch_releases(LINUX_AARCH64_RELEASES_URL).await?;
             releases.retain_versions(|v| *v < LINUX_AARCH64_BINARIES);
             fix_build_prerelease(&mut releases);
-            let mut official = fetch_releases(&format!(
-                "{SOLC_RELEASES_URL}/{LINUX_AARCH64_PLATFORM}/list.json",
-            ))
-            .await?;
+            let mut official =
+                fetch_releases(&format!("{base}/{LINUX_AARCH64_PLATFORM}/list.json",)).await?;
             // Filtering older releases isn't strinctly necessary here, but do it just in case
             // Solidity retroactively starts adding older release binaries for linux-aarch64.
             official.retain_versions(|v| *v >= LINUX_AARCH64_BINARIES);
@@ -359,12 +373,8 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SvmError> {
             // 2. For version <= 0.8.4 we fetch releases from https://binaries.soliditylang.org and
             // require Rosetta support.
             let native = fetch_releases(MACOS_AARCH64_RELEASES_URL).await?;
-            let mut releases = fetch_releases(&format!(
-                "{}/{}/list.json",
-                SOLC_RELEASES_URL,
-                Platform::MacOsAmd64,
-            ))
-            .await?;
+            let mut releases =
+                fetch_releases(&format!("{}/{}/list.json", base, Platform::MacOsAmd64,)).await?;
             releases
                 .retain_versions(|v| *v < MACOS_AARCH64_NATIVE || *v > UNIVERSAL_MACOS_BINARIES);
 
@@ -375,17 +385,13 @@ pub async fn all_releases(platform: Platform) -> Result<Releases, SvmError> {
         Platform::WindowsAarch64 => {
             // Windows ARM64 uses x64 binaries via emulation
             // Solidity does not provide native ARM64 Windows binaries
-            let releases = fetch_releases(&format!(
-                "{SOLC_RELEASES_URL}/{}/list.json",
-                Platform::WindowsAmd64
-            ))
-            .await?;
+            let releases =
+                fetch_releases(&format!("{base}/{}/list.json", Platform::WindowsAmd64)).await?;
 
             Ok(unified_releases(releases, platform))
         }
         _ => {
-            let releases =
-                fetch_releases(&format!("{SOLC_RELEASES_URL}/{platform}/list.json")).await?;
+            let releases = fetch_releases(&format!("{base}/{platform}/list.json")).await?;
 
             Ok(unified_releases(releases, platform))
         }
@@ -423,6 +429,7 @@ pub(crate) fn artifact_url(
     version: &Version,
     artifact: &str,
 ) -> Result<Url, SvmError> {
+    let base = solc_releases_url();
     if platform == Platform::LinuxAmd64
         && *version <= OLD_VERSION_MAX
         && *version >= OLD_VERSION_MIN
@@ -435,7 +442,7 @@ pub(crate) fn artifact_url(
     if platform == Platform::LinuxAarch64 {
         if *version >= LINUX_AARCH64_BINARIES {
             return Ok(Url::parse(&format!(
-                "{SOLC_RELEASES_URL}/{LINUX_AARCH64_PLATFORM}/{artifact}"
+                "{base}/{LINUX_AARCH64_PLATFORM}/{artifact}"
             ))?);
         } else if *version >= LINUX_AARCH64_MIN {
             return Ok(Url::parse(&format!(
@@ -466,7 +473,7 @@ pub(crate) fn artifact_url(
             // if version is older or universal macos binaries are available, fetch from `https://binaries.soliditylang.org`
             return Ok(Url::parse(&format!(
                 "{}/{}/{}",
-                SOLC_RELEASES_URL,
+                base,
                 Platform::MacOsAmd64,
                 artifact,
             ))?);
@@ -490,14 +497,12 @@ pub(crate) fn artifact_url(
         // Windows ARM64 uses x64 binaries via emulation
         // Solidity does not provide native ARM64 Windows binaries
         return Ok(Url::parse(&format!(
-            "{SOLC_RELEASES_URL}/{}/{artifact}",
+            "{base}/{}/{artifact}",
             Platform::WindowsAmd64,
         ))?);
     }
 
-    Ok(Url::parse(&format!(
-        "{SOLC_RELEASES_URL}/{platform}/{artifact}"
-    ))?)
+    Ok(Url::parse(&format!("{base}/{platform}/{artifact}"))?)
 }
 
 #[cfg(test)]
@@ -653,6 +658,16 @@ mod tests {
         let err = blocking_fetch_releases_with(&url, TEST_POLICY).unwrap_err();
         assert!(err.to_string().contains("429 Too Many Requests"), "{err}");
         assert!(err.to_string().contains(&url), "{err}");
+    }
+
+    #[test]
+    fn releases_url_override() {
+        assert_eq!(releases_url_from(None), SOLC_RELEASES_URL);
+        assert_eq!(releases_url_from(Some("  ".into())), SOLC_RELEASES_URL);
+        assert_eq!(
+            releases_url_from(Some("https://mirror.example/solc/".into())),
+            "https://mirror.example/solc"
+        );
     }
 
     #[test]
