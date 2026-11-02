@@ -1,5 +1,5 @@
 use crate::{
-    SvmError, all_releases, data_dir, platform, releases::artifact_url, setup_data_dir,
+    Releases, SvmError, all_releases, data_dir, platform, releases::artifact_url, setup_data_dir,
     setup_version, version_binary, version_path,
 };
 use semver::Version;
@@ -40,9 +40,7 @@ pub fn blocking_install(version: &Version) -> Result<PathBuf, SvmError> {
         .ok_or_else(|| SvmError::UnknownVersion(version.clone()))?;
     let download_url = artifact_url(platform::platform(), version, artifact.to_string().as_str())?;
 
-    let expected_checksum = artifacts
-        .get_checksum(version)
-        .unwrap_or_else(|| panic!("checksum not available: {:?}", version.to_string()));
+    let expected_checksum = expected_checksum(&artifacts, version)?;
 
     // Skip the download if this version is already installed and matches the expected checksum,
     // which is the common case when parallel processes install the same version.
@@ -94,9 +92,7 @@ pub async fn install(version: &Version) -> Result<PathBuf, SvmError> {
         .ok_or_else(|| SvmError::UnknownVersion(version.clone()))?;
     let download_url = artifact_url(platform::platform(), version, artifact.to_string().as_str())?;
 
-    let expected_checksum = artifacts
-        .get_checksum(version)
-        .unwrap_or_else(|| panic!("checksum not available: {:?}", version.to_string()));
+    let expected_checksum = expected_checksum(&artifacts, version)?;
 
     // Skip the download if this version is already installed and matches the expected checksum,
     // which is the common case when parallel processes install the same version.
@@ -132,6 +128,13 @@ pub async fn install(version: &Version) -> Result<PathBuf, SvmError> {
         artifact.to_string().as_str(),
         &expected_checksum,
     )
+}
+
+/// Returns the checksum the release list records for `version`.
+fn expected_checksum(artifacts: &Releases, version: &Version) -> Result<Vec<u8>, SvmError> {
+    artifacts
+        .get_checksum(version)
+        .ok_or_else(|| SvmError::MissingChecksum(version.clone()))
 }
 
 /// Returns the path of the solc binary if `version` is already installed and its contents match
@@ -561,6 +564,17 @@ mod tests {
 
     #[allow(unused)]
     const LATEST: Version = Version::new(0, 8, 38);
+
+    #[test]
+    fn missing_checksum_is_an_error() {
+        let version = Version::new(0, 8, 0);
+        let mut artifacts = Releases::default();
+        artifacts
+            .releases
+            .insert(version.clone(), "solc-v0.8.0".to_string());
+        let err = expected_checksum(&artifacts, &version).unwrap_err();
+        assert!(matches!(err, SvmError::MissingChecksum(v) if v == version));
+    }
 
     #[tokio::test]
     async fn test_install() {
