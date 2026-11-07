@@ -35,23 +35,13 @@ fn nixos_cache_reuse_respects_patch_version_boundaries() {
         fs::set_permissions(&path, Permissions::from_mode(0o755)).unwrap();
         assert_eq!(requires_nixos_patch(&version, true), needs_patch);
         assert!(!requires_nixos_patch(&version, false));
-        let _lock = try_lock_file(&lock_file_path(&version)).unwrap();
-        for repair_permissions in [false, true] {
-            let nixos = find_reusable_installation_for_platform(
-                &version,
-                &checksum,
-                repair_permissions,
-                true,
-            )
-            .unwrap();
+        let lock = InstallLock::acquire(&version).unwrap();
+        for lock in [None, Some(&lock)] {
+            let nixos =
+                find_reusable_installation_for_platform(&version, &checksum, lock, true).unwrap();
             assert_eq!(nixos.is_none(), needs_patch, "NixOS solc {version}");
-            let linux = find_reusable_installation_for_platform(
-                &version,
-                &checksum,
-                repair_permissions,
-                false,
-            )
-            .unwrap();
+            let linux =
+                find_reusable_installation_for_platform(&version, &checksum, lock, false).unwrap();
             assert_eq!(linux, Some(path.clone()), "non-NixOS solc {version}");
         }
         assert_eq!(fs::read(&path).unwrap(), bytes);
@@ -70,8 +60,8 @@ fn repairs_permissions_while_binary_is_running() {
     // Reap the child before asserting the repair result, including on an error.
     let result = (|| {
         fs::set_permissions(&path, Permissions::from_mode(0o644))?;
-        let _lock = try_lock_file(&lock_file_path(&version))?;
-        do_install_and_retry(&version, &bytes, "", &checksum)
+        let lock = InstallLock::acquire(&version)?;
+        do_install_and_retry(&lock, &version, &bytes, "", &checksum)
     })();
     let _ = child.kill();
     child.wait().unwrap();
@@ -93,7 +83,7 @@ fn repairs_permissions_without_replacing_binary() {
     for mode in [0o644, 0o744, 0o654] {
         fs::set_permissions(&path, Permissions::from_mode(mode)).unwrap();
         assert!(
-            find_reusable_installation(&version, &checksum, false)
+            find_reusable_installation(&version, &checksum, None)
                 .unwrap()
                 .is_none()
         );
@@ -102,9 +92,9 @@ fn repairs_permissions_without_replacing_binary() {
             fs::metadata(&path).unwrap().permissions().mode() & 0o777,
             mode
         );
-        let _lock = try_lock_file(&lock_file_path(&version)).unwrap();
+        let lock = InstallLock::acquire(&version).unwrap();
         assert_eq!(
-            do_install_and_retry(&version, &bytes, "", &checksum).unwrap(),
+            do_install_and_retry(&lock, &version, &bytes, "", &checksum).unwrap(),
             path
         );
         let metadata = fs::metadata(&path).unwrap();
@@ -121,9 +111,9 @@ fn permission_repair_does_not_trust_corrupt_contents() {
     let checksum = sha2::Sha256::digest(&bytes);
     let path = do_install(&version, b"corrupt", "").unwrap();
     fs::set_permissions(&path, Permissions::from_mode(0o644)).unwrap();
-    let _lock = try_lock_file(&lock_file_path(&version)).unwrap();
+    let lock = InstallLock::acquire(&version).unwrap();
     assert!(
-        find_reusable_installation(&version, &checksum, true)
+        find_reusable_installation(&version, &checksum, Some(&lock))
             .unwrap()
             .is_none()
     );
@@ -131,7 +121,7 @@ fn permission_repair_does_not_trust_corrupt_contents() {
         fs::metadata(&path).unwrap().permissions().mode() & 0o777,
         0o644
     );
-    do_install_and_retry(&version, &bytes, "", &checksum).unwrap();
+    do_install_and_retry(&lock, &version, &bytes, "", &checksum).unwrap();
     assert_eq!(fs::read(&path).unwrap(), bytes);
     assert!(Command::new(&path).status().unwrap().success());
 }
