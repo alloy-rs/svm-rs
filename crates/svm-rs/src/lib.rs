@@ -47,7 +47,12 @@ pub const VERSION_MESSAGE: &str = concat!(
 
 /// Reads the currently set global version for Solc. Returns None if none has yet been set.
 pub fn get_global_version() -> Result<Option<Version>, SvmError> {
-    let v = fs::read_to_string(global_version_path())?;
+    // The global version file only exists once the data directory has been set up.
+    let v = match fs::read_to_string(global_version_path()) {
+        Ok(v) => v,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(err) => return Err(err.into()),
+    };
     Ok(Version::parse(v.trim_end_matches('\n')).ok())
 }
 
@@ -124,6 +129,18 @@ fn setup_version(version: &str) -> Result<(), SvmError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Before the data directory is set up, e.g. when the `solc` wrapper runs first, there is no
+    /// global version file: the global version is unset rather than an error.
+    #[test]
+    fn global_version_is_unset_without_version_file() {
+        match fs::remove_file(global_version_path()) {
+            Ok(()) => {}
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+            Err(err) => panic!("{err}"),
+        }
+        assert_eq!(get_global_version().unwrap(), None);
+    }
 
     /// Auxiliary entries in the data directory, such as lock files left behind by older versions,
     /// must not fail the version listing, and only fully installed versions are listed.
