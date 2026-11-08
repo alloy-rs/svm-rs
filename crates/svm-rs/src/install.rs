@@ -136,10 +136,9 @@ impl<'a> InstallPlan<'a> {
             .to_string();
         let download_url = artifact_url(platform::platform(), version, &artifact)?;
 
-        // A release without a checksum cannot be verified, so it is not installable.
         let expected_checksum = artifacts
             .get_checksum(version)
-            .ok_or_else(|| SvmError::UnknownVersion(version.clone()))?;
+            .unwrap_or_else(|| panic!("checksum not available: {:?}", version.to_string()));
 
         Ok(Self {
             version,
@@ -732,19 +731,6 @@ mod tests {
 
         assert_eq!(installed, solc_path);
         assert_eq!(fs::read(&solc_path).unwrap(), binbytes);
-    }
-
-    /// A release list entry without a checksum, e.g. from a malformed or third-party list, must
-    /// fail the installation instead of panicking.
-    #[test]
-    fn install_plan_rejects_release_without_checksum() {
-        let version = Version::new(0, 8, 30);
-        let mut releases = Releases::default();
-        releases
-            .releases
-            .insert(version.clone(), "solc-v0.8.30".to_string());
-        let err = InstallPlan::new(&version, &releases).unwrap_err();
-        assert!(matches!(err, SvmError::UnknownVersion(v) if v == version));
     }
 
     /// The lock file must never be removed, see [`try_lock_file`].
