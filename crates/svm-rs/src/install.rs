@@ -315,9 +315,10 @@ fn do_install(version: &Version, binbytes: &[u8], _artifact: &str) -> Result<Pat
 
 /// The exclusive per-version install lock.
 ///
-/// Holding one is the precondition for replacing a version's binary or repairing its permissions:
-/// functions that do either take it as an argument, so they cannot be called without the lock. The
-/// lock is released once this is dropped.
+/// Holding one is the precondition for repairing a version's binary or replacing it during an
+/// installation: [`find_reusable_installation`] only repairs permissions when given the lock, and
+/// [`do_install_and_retry`] requires it. The lower-level [`do_install`] does not take the lock.
+/// The lock is released once this is dropped.
 #[derive(Debug)]
 struct InstallLock {
     _file: fs::File,
