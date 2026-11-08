@@ -1,5 +1,5 @@
 use crate::{
-    SvmError, all_releases, data_dir, platform, releases::artifact_url, setup_data_dir,
+    Releases, SvmError, all_releases, data_dir, platform, releases::artifact_url, setup_data_dir,
     setup_version, version_binary, version_path,
 };
 use semver::Version;
@@ -12,6 +12,7 @@ use std::{
     time::Duration,
 };
 use tempfile::NamedTempFile;
+use url::Url;
 
 #[cfg(target_family = "unix")]
 use std::{fs::Permissions, os::unix::fs::PermissionsExt};
@@ -29,24 +30,23 @@ const NIXOS_MIN_PATCH_VERSION: Version = Version::new(0, 7, 6);
 /// See <https://github.com/ethereum/solidity/releases/tag/v0.8.29>
 const NIXOS_MAX_PATCH_VERSION: Version = Version::new(0, 8, 28);
 
+/// How many times an installation that failed with "text file busy" is retried.
+const TEXT_FILE_BUSY_RETRIES: usize = 3;
+
+/// The delay before retrying an installation that failed with "text file busy".
+const TEXT_FILE_BUSY_RETRY_DELAY: Duration = Duration::from_millis(250);
+
 /// Blocking version of [`install`]
 #[cfg(feature = "blocking")]
 pub fn blocking_install(version: &Version) -> Result<PathBuf, SvmError> {
     setup_data_dir()?;
 
     let artifacts = crate::blocking_all_releases(platform::platform())?;
-    let artifact = artifacts
-        .get_artifact(version)
-        .ok_or_else(|| SvmError::UnknownVersion(version.clone()))?;
-    let download_url = artifact_url(platform::platform(), version, artifact.to_string().as_str())?;
-
-    let expected_checksum = artifacts
-        .get_checksum(version)
-        .unwrap_or_else(|| panic!("checksum not available: {:?}", version.to_string()));
+    let plan = InstallPlan::new(version, &artifacts)?;
 
     // Skip the download if this version is already installed and matches the expected checksum,
     // which is the common case when parallel processes install the same version.
-    if let Some(solc_path) = find_reusable_installation(version, &expected_checksum, false)? {
+    if let Some(solc_path) = plan.find_reusable_installation()? {
         return Ok(solc_path);
     }
 
@@ -54,29 +54,18 @@ pub fn blocking_install(version: &Version) -> Result<PathBuf, SvmError> {
         .timeout(REQUEST_TIMEOUT)
         .build()
         .expect("reqwest::Client::new()")
-        .get(download_url.clone())
+        .get(plan.download_url.clone())
         .send()?;
 
     if !res.status().is_success() {
-        return Err(SvmError::UnsuccessfulResponse(download_url, res.status()));
+        return Err(SvmError::UnsuccessfulResponse(
+            plan.download_url,
+            res.status(),
+        ));
     }
 
     let binbytes = res.bytes()?;
-    ensure_checksum(&binbytes, version, &expected_checksum)?;
-
-    // lock file to indicate that installation of this solc version will be in progress.
-    setup_version(&version.to_string())?;
-    let lock_path = lock_file_path(version);
-    // wait until lock file is released, possibly by another parallel thread trying to install the
-    // same version of solc.
-    let _lock = try_lock_file(&lock_path)?;
-
-    do_install_and_retry(
-        version,
-        &binbytes,
-        artifact.to_string().as_str(),
-        &expected_checksum,
-    )
+    plan.install(&binbytes)
 }
 
 /// Installs the provided version of Solc in the machine.
@@ -89,18 +78,11 @@ pub async fn install(version: &Version) -> Result<PathBuf, SvmError> {
     setup_data_dir()?;
 
     let artifacts = all_releases(platform::platform()).await?;
-    let artifact = artifacts
-        .get_artifact(version)
-        .ok_or_else(|| SvmError::UnknownVersion(version.clone()))?;
-    let download_url = artifact_url(platform::platform(), version, artifact.to_string().as_str())?;
-
-    let expected_checksum = artifacts
-        .get_checksum(version)
-        .unwrap_or_else(|| panic!("checksum not available: {:?}", version.to_string()));
+    let plan = InstallPlan::new(version, &artifacts)?;
 
     // Skip the download if this version is already installed and matches the expected checksum,
     // which is the common case when parallel processes install the same version.
-    if let Some(solc_path) = find_reusable_installation(version, &expected_checksum, false)? {
+    if let Some(solc_path) = plan.find_reusable_installation()? {
         return Ok(solc_path);
     }
 
@@ -108,38 +90,97 @@ pub async fn install(version: &Version) -> Result<PathBuf, SvmError> {
         .timeout(REQUEST_TIMEOUT)
         .build()
         .expect("reqwest::Client::new()")
-        .get(download_url.clone())
+        .get(plan.download_url.clone())
         .send()
         .await?;
 
     if !res.status().is_success() {
-        return Err(SvmError::UnsuccessfulResponse(download_url, res.status()));
+        return Err(SvmError::UnsuccessfulResponse(
+            plan.download_url,
+            res.status(),
+        ));
     }
 
     let binbytes = res.bytes().await?;
-    ensure_checksum(&binbytes, version, &expected_checksum)?;
+    plan.install(&binbytes)
+}
 
-    // lock file to indicate that installation of this solc version will be in progress.
-    setup_version(&version.to_string())?;
-    let lock_path = lock_file_path(version);
-    // wait until lock file is released, possibly by another parallel thread trying to install the
-    // same version of solc.
-    let _lock = try_lock_file(&lock_path)?;
+/// The installation of one solc version, resolved from the release list.
+///
+/// [`install`] and [`blocking_install`] only differ in how they download the artifact; both go
+/// through the same steps around the download, in this order:
+///
+/// 1. [`InstallPlan::new`] resolves the artifact, its download URL and its expected checksum;
+/// 2. [`InstallPlan::find_reusable_installation`] skips the download if a matching binary is
+///    already installed;
+/// 3. the caller downloads [`InstallPlan::download_url`];
+/// 4. [`InstallPlan::install`] verifies the downloaded bytes, then installs them while holding the
+///    per-version [`InstallLock`].
+#[derive(Debug)]
+struct InstallPlan<'a> {
+    version: &'a Version,
+    /// The release artifact's file name.
+    artifact: String,
+    /// Where to download the artifact from.
+    download_url: Url,
+    /// The SHA-256 checksum the downloaded artifact must have.
+    expected_checksum: Vec<u8>,
+}
 
-    do_install_and_retry(
-        version,
-        &binbytes,
-        artifact.to_string().as_str(),
-        &expected_checksum,
-    )
+impl<'a> InstallPlan<'a> {
+    /// Resolves the artifact of `version` from the release list.
+    fn new(version: &'a Version, artifacts: &Releases) -> Result<Self, SvmError> {
+        let artifact = artifacts
+            .get_artifact(version)
+            .ok_or_else(|| SvmError::UnknownVersion(version.clone()))?
+            .to_string();
+        let download_url = artifact_url(platform::platform(), version, &artifact)?;
+
+        let expected_checksum = artifacts
+            .get_checksum(version)
+            .unwrap_or_else(|| panic!("checksum not available: {:?}", version.to_string()));
+
+        Ok(Self {
+            version,
+            artifact,
+            download_url,
+            expected_checksum,
+        })
+    }
+
+    /// Returns the installed binary if it already matches the expected checksum, without taking
+    /// the install lock, so it is never modified.
+    fn find_reusable_installation(&self) -> Result<Option<PathBuf>, SvmError> {
+        find_reusable_installation(self.version, &self.expected_checksum, None)
+    }
+
+    /// Verifies the downloaded artifact and installs it, returning the path to the solc binary.
+    fn install(self, binbytes: &[u8]) -> Result<PathBuf, SvmError> {
+        ensure_checksum(binbytes, self.version, &self.expected_checksum)?;
+
+        // lock file to indicate that installation of this solc version will be in progress.
+        setup_version(&self.version.to_string())?;
+        // wait until lock file is released, possibly by another parallel thread trying to install
+        // the same version of solc.
+        let lock = InstallLock::acquire(self.version)?;
+
+        do_install_and_retry(
+            &lock,
+            self.version,
+            binbytes,
+            &self.artifact,
+            &self.expected_checksum,
+        )
+    }
 }
 
 /// Returns the path of the solc binary if `version` is already installed and its contents match
 /// the expected artifact checksum.
 ///
-/// Permission repair is only allowed while holding the per-version install lock. Use a read-only
-/// handle for both verification and chmod so repairs neither replace the inode nor open an
-/// executable for writing.
+/// Without `lock` this is a read-only check: an installation that is not executable is not
+/// reused. Permission repair is only allowed while holding the per-version install lock, so it is
+/// only done when the caller passes it as `lock`. Use a read-only handle for both verification
+/// and chmod so repairs neither replace the inode nor open an executable for writing.
 ///
 /// Versions requiring a NixOS interpreter patch must go through installation even if their bytes
 /// match: a restored Linux cache can contain an unpatched binary. Patched NixOS binaries do not
@@ -148,21 +189,16 @@ pub async fn install(version: &Version) -> Result<PathBuf, SvmError> {
 fn find_reusable_installation(
     version: &Version,
     expected_checksum: &[u8],
-    _repair_permissions: bool,
+    lock: Option<&InstallLock>,
 ) -> Result<Option<PathBuf>, SvmError> {
-    find_reusable_installation_for_platform(
-        version,
-        expected_checksum,
-        _repair_permissions,
-        platform::is_nixos(),
-    )
+    find_reusable_installation_for_platform(version, expected_checksum, lock, platform::is_nixos())
 }
 
 /// Keep platform selection explicit so cache reuse can be tested without changing the host OS.
 fn find_reusable_installation_for_platform(
     version: &Version,
     expected_checksum: &[u8],
-    _repair_permissions: bool,
+    _lock: Option<&InstallLock>,
     is_nixos: bool,
 ) -> Result<Option<PathBuf>, SvmError> {
     if requires_nixos_patch(version, is_nixos) {
@@ -180,7 +216,7 @@ fn find_reusable_installation_for_platform(
     }
     #[cfg(target_family = "unix")]
     if file.metadata()?.permissions().mode() & 0o111 != 0o111 {
-        if !_repair_permissions {
+        if _lock.is_none() {
             return Ok(None);
         }
         file.set_permissions(Permissions::from_mode(0o755))?;
@@ -220,8 +256,9 @@ fn requires_nixos_patch(version: &Version, is_nixos: bool) -> bool {
 /// Same as [`do_install`] but reuses an already installed binary if it matches the expected
 /// checksum and retries "text file busy" errors.
 ///
-/// Expects the per-version lock to be held by the caller.
+/// Requires the per-version install lock, which the caller holds for the whole installation.
 fn do_install_and_retry(
+    lock: &InstallLock,
     version: &Version,
     binbytes: &[u8],
     artifact: &str,
@@ -232,36 +269,35 @@ fn do_install_and_retry(
     // are not overwritten, which Windows refuses.
     let archived_checksum = archived_binary_checksum(binbytes, artifact)?;
     let expected_checksum = archived_checksum.as_deref().unwrap_or(expected_checksum);
-    let mut retries = 0;
+    // Busy solc can be in use for a while (e.g. if compiling a large project), so a "text file
+    // busy" failure is retried after some time; any other failure is final.
+    let mut busy_retries = std::iter::repeat_n(TEXT_FILE_BUSY_RETRY_DELAY, TEXT_FILE_BUSY_RETRIES);
 
     loop {
         // A parallel process may have already installed this version while we were downloading or
         // waiting for the lock. In that case reuse the existing binary instead of replacing it,
         // because it can already be executing in another process.
-        if let Some(solc_path) = find_reusable_installation(version, expected_checksum, true)? {
+        if let Some(solc_path) = find_reusable_installation(version, expected_checksum, Some(lock))?
+        {
             return Ok(solc_path);
         }
 
-        return match do_install(version, binbytes, artifact) {
-            Ok(path) => Ok(path),
-            Err(err) => {
-                // installation failed
-                if retries > 2 {
-                    return Err(err);
-                }
-                retries += 1;
-                // check if this failed due to a text file busy, which indicates that a different process started using the target file
-                if err.to_string().to_lowercase().contains("text file busy") {
-                    // busy solc can be in use for a while (e.g. if compiling a large project), so
-                    // we retry after some time; the loop re-checks whether a valid binary exists
-                    std::thread::sleep(Duration::from_millis(250));
-                    continue;
-                }
-
-                Err(err)
-            }
-        };
+        match do_install(version, binbytes, artifact) {
+            Ok(path) => return Ok(path),
+            // a text file busy failure indicates that a different process started using the target
+            // file: retry after a delay, the loop re-checks whether a valid binary exists by then
+            Err(err) if is_text_file_busy(&err) => match busy_retries.next() {
+                Some(delay) => std::thread::sleep(delay),
+                None => return Err(err),
+            },
+            Err(err) => return Err(err),
+        }
     }
+}
+
+/// Returns whether an installation failed because the target file was being executed.
+fn is_text_file_busy(err: &SvmError) -> bool {
+    err.to_string().to_lowercase().contains("text file busy")
 }
 
 fn do_install(version: &Version, binbytes: &[u8], _artifact: &str) -> Result<PathBuf, SvmError> {
@@ -275,6 +311,26 @@ fn do_install(version: &Version, binbytes: &[u8], _artifact: &str) -> Result<Pat
     }
 
     installer.install()
+}
+
+/// The exclusive per-version install lock.
+///
+/// Holding one is the precondition for repairing a version's binary or replacing it during an
+/// installation: [`find_reusable_installation`] only repairs permissions when given the lock, and
+/// [`do_install_and_retry`] requires it. The lower-level [`do_install`] does not take the lock.
+/// The lock is released once this is dropped.
+#[derive(Debug)]
+struct InstallLock {
+    _file: fs::File,
+}
+
+impl InstallLock {
+    /// Locks the install lock of `version`, blocking while another process or thread holds it.
+    ///
+    /// The version directory must already exist, see [`setup_version`].
+    fn acquire(version: &Version) -> Result<Self, SvmError> {
+        try_lock_file(&lock_file_path(version)).map(|file| Self { _file: file })
+    }
 }
 
 /// Creates or opens the lock file and locks it exclusively, this will block if the file is
@@ -638,8 +694,9 @@ mod tests {
 
         let mut child = Command::new(&solc_path).arg("30").spawn().unwrap();
 
-        let _lock = try_lock_file(&lock_file_path(&version)).unwrap();
+        let lock = InstallLock::acquire(&version).unwrap();
         let installed = do_install_and_retry(
+            &lock,
             &version,
             b"different binary contents",
             "",
@@ -669,8 +726,9 @@ mod tests {
         let binbytes = b"expected binary contents";
         let expected_checksum = &sha2::Sha256::digest(binbytes)[..];
 
-        let _lock = try_lock_file(&lock_file_path(&version)).unwrap();
-        let installed = do_install_and_retry(&version, binbytes, "", expected_checksum).unwrap();
+        let lock = InstallLock::acquire(&version).unwrap();
+        let installed =
+            do_install_and_retry(&lock, &version, binbytes, "", expected_checksum).unwrap();
 
         assert_eq!(installed, solc_path);
         assert_eq!(fs::read(&solc_path).unwrap(), binbytes);
