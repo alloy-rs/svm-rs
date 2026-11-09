@@ -48,8 +48,8 @@ rust-toolchain-version = "stable"
 # Aegis supports native Linux and Apple Silicon hosts, not job containers or
 # Intel macOS hosts. Cross-compile the Intel macOS artifact on Apple Silicon.
 [dist.github-custom-runners]
-aarch64-apple-darwin = "macos-14"
-x86_64-apple-darwin = "macos-14"
+aarch64-apple-darwin = "macos-15"
+x86_64-apple-darwin = "macos-15"
 aarch64-unknown-linux-gnu = "ubuntu-22.04-arm"
 x86_64-unknown-linux-gnu = "ubuntu-22.04"
 x86_64-unknown-linux-musl = "ubuntu-22.04"
