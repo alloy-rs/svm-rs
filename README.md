@@ -45,3 +45,11 @@ Options:
   -h, --help     Print help
   -V, --version  Print version
 ```
+
+### Mirrors
+
+Set `SVM_RELEASES_URL` to download release lists and binaries from a mirror of
+`https://binaries.soliditylang.org` with the same `{platform}/list.json` layout, for example
+`SVM_RELEASES_URL=https://solc-mirror.internal`. Builds hosted elsewhere (linux-aarch64 before
+0.8.31, macosx-aarch64 0.8.5 to 0.8.24, android-aarch64, linux-amd64 0.4.0 to 0.4.9) are not
+affected.
