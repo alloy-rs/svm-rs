@@ -136,9 +136,7 @@ impl<'a> InstallPlan<'a> {
             .to_string();
         let download_url = artifact_url(platform::platform(), version, &artifact)?;
 
-        let expected_checksum = artifacts
-            .get_checksum(version)
-            .unwrap_or_else(|| panic!("checksum not available: {:?}", version.to_string()));
+        let expected_checksum = expected_checksum(artifacts, version)?;
 
         Ok(Self {
             version,
@@ -172,6 +170,13 @@ impl<'a> InstallPlan<'a> {
             &self.expected_checksum,
         )
     }
+}
+
+/// Returns the checksum the release list records for `version`.
+fn expected_checksum(artifacts: &Releases, version: &Version) -> Result<Vec<u8>, SvmError> {
+    artifacts
+        .get_checksum(version)
+        .ok_or_else(|| SvmError::MissingChecksum(version.clone()))
 }
 
 /// Returns the path of the solc binary if `version` is already installed and its contents match
@@ -617,6 +622,17 @@ mod tests {
 
     #[allow(unused)]
     const LATEST: Version = Version::new(0, 8, 38);
+
+    #[test]
+    fn missing_checksum_is_an_error() {
+        let version = Version::new(0, 8, 0);
+        let mut artifacts = Releases::default();
+        artifacts
+            .releases
+            .insert(version.clone(), "solc-v0.8.0".to_string());
+        let err = expected_checksum(&artifacts, &version).unwrap_err();
+        assert!(matches!(err, SvmError::MissingChecksum(v) if v == version));
+    }
 
     #[tokio::test]
     async fn test_install() {
