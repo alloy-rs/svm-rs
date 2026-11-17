@@ -1,0 +1,4 @@
+[env]
+# Keep smolgen from rerunning build scripts on every commit and from emitting dates.
+# Set VERGEN_IDEMPOTENT=0 in the environment for builds that ship.
+VERGEN_IDEMPOTENT = "1"
