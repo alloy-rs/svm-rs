@@ -181,6 +181,8 @@ jobs:
         env:
           TAG_FLAG: ${{ needs.plan.outputs.tag-flag }}
           DIST_ARGS: ${{ matrix.dist_args }}
+          # Release binaries embed the real git commit date in their version output.
+          VERGEN_IDEMPOTENT: "0"
         run: |
           read -r -a tag_flag_args <<< "$TAG_FLAG"
           read -r -a dist_args_args <<< "$DIST_ARGS"
