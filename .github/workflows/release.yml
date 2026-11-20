@@ -384,7 +384,7 @@ jobs:
       - host
       - announce
     # Skip pull requests and prereleases.
-    if: ${{ always() && needs.announce.result == 'success' && needs.plan.outputs.publishing == 'true' && !fromJson(needs.host.outputs.val).announcement_is_prerelease }}
+    if: ${{ needs.plan.outputs.publishing == 'true' && !fromJson(needs.host.outputs.val).announcement_is_prerelease }}
     runs-on: "ubuntu-22.04"
     timeout-minutes: 60
     permissions:
