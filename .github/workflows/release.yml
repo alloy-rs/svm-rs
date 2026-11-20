@@ -13,6 +13,10 @@
 #
 # Note that the GitHub Release will be created with a generated
 # title/body based on your changelogs.
+#
+# After the GitHub Release exists, the verify and publish jobs publish the
+# crates to crates.io with trusted publishing. crates.io trusts this workflow
+# file (release.yml) and the `release` environment, so keep both names.
 
 name: Release
 permissions: {}
@@ -372,3 +376,87 @@ jobs:
           echo "$ANNOUNCEMENT_BODY" > "$RUNNER_TEMP/notes.txt"
 
           gh release create "$RELEASE_TAG" --target "$RELEASE_COMMIT" "${prerelease_flag_args[@]}" --title "$ANNOUNCEMENT_TITLE" --notes-file "$RUNNER_TEMP/notes.txt" artifacts/*
+
+  # Check the crates package, with no crates.io access and no environment
+  verify:
+    needs:
+      - plan
+      - host
+      - announce
+    # Skip pull requests and prereleases.
+    if: ${{ always() && needs.announce.result == 'success' && needs.plan.outputs.publishing == 'true' && !fromJson(needs.host.outputs.val).announcement_is_prerelease }}
+    runs-on: "ubuntu-22.04"
+    timeout-minutes: 60
+    permissions:
+      id-token: write # secure-runner only: crates.io trusts only the release environment.
+      contents: read
+    outputs:
+      packages: ${{ steps.packages.outputs.packages }}
+    steps:
+      - name: Secure runner
+        uses: tempoxyz/gh-actions/actions/secure-runner@763efe11a9d8333bcbf0bb2f5ab80f21961c48fd # 2026-11-02T08-44-18Z-763efe11
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check the tagged commit is on master
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/master
+      - name: Install Rust
+        run: rustup update "stable" --no-self-update && rustup default "stable"
+      - name: Resolve packages
+        id: packages
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#"${TAG%%[0-9]*}"}"
+          metadata="$(cargo metadata --format-version 1 --no-deps --locked)"
+          # `publish` is null when unrestricted, or a list of allowed registries.
+          packages="$(jq -r '.packages[] | select(.publish == null or (.publish | index("crates-io"))) | .name' <<<"$metadata")"
+          if [[ -z "$packages" ]]; then
+            echo "error: no publishable packages in the workspace" >&2
+            exit 1
+          fi
+          for package in $packages; do
+            actual="$(jq -r --arg name "$package" '.packages[] | select(.name == $name) | .version' <<<"$metadata")"
+            if [[ "$actual" != "$version" ]]; then
+              echo "error: ${package} is ${actual}, but tag ${TAG} releases ${version}" >&2
+              exit 1
+            fi
+          done
+          echo "packages=$(paste -sd ' ' - <<<"$packages")" >> "$GITHUB_OUTPUT"
+      - uses: tempoxyz/gh-actions/actions/cargo-publish@763efe11a9d8333bcbf0bb2f5ab80f21961c48fd # 2026-11-02T08-44-18Z-763efe11
+        with:
+          packages: ${{ steps.packages.outputs.packages }}
+          dry-run: true
+
+  # Publish the crates to crates.io with trusted publishing
+  publish:
+    needs: verify
+    runs-on: "ubuntu-22.04"
+    timeout-minutes: 45
+    environment: release
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Secure runner
+        uses: tempoxyz/gh-actions/actions/secure-runner@763efe11a9d8333bcbf0bb2f5ab80f21961c48fd # 2026-11-02T08-44-18Z-763efe11
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Install Rust
+        run: rustup update "stable" --no-self-update && rustup default "stable"
+      - name: Check the tag still points at the verified commit
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          target="$(git ls-remote --tags origin | awk -v r="refs/tags/${TAG}" '$2 == r { t = $1 } $2 == r "^{}" { p = $1 } END { print (p != "" ? p : t) }')"
+          test "$target" = "$GITHUB_SHA"
+      - uses: tempoxyz/gh-actions/actions/cargo-publish@763efe11a9d8333bcbf0bb2f5ab80f21961c48fd # 2026-11-02T08-44-18Z-763efe11
+        with:
+          packages: ${{ needs.verify.outputs.packages }}
+          verify: false
