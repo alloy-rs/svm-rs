@@ -179,6 +179,7 @@ pub static RELEASE_LIST_JSON : &str = r#"{release_json}"#;"##
     // Tell Cargo that we need to rerun this if any of the relevant env vars change
     println!("cargo:rerun-if-env-changed={SVM_TARGET_PLATFORM}");
     println!("cargo:rerun-if-env-changed={SVM_RELEASES_LIST_JSON}");
+    println!("cargo:rerun-if-env-changed={}", svm::SVM_RELEASES_URL);
 }
 
 /// generates an empty `RELEASE_LIST_JSON` static

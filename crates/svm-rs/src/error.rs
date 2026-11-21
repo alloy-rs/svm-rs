@@ -10,6 +10,8 @@ pub enum SvmError {
     GlobalVersionNotSet,
     #[error("version not found in artifacts for this platform: {0}")]
     UnknownVersion(Version),
+    #[error("checksum not available for solc version {0} in the release list")]
+    MissingChecksum(Version),
     #[error("Unsupported version {0} for platform {1}")]
     UnsupportedVersion(String, String),
     #[error("Version {0} not installed")]

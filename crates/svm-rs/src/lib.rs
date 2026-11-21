@@ -29,7 +29,7 @@ mod platform;
 pub use platform::{Platform, platform};
 
 mod releases;
-pub use releases::{BuildInfo, Releases, all_releases};
+pub use releases::{BuildInfo, Releases, SVM_RELEASES_URL, all_releases};
 
 #[cfg(feature = "blocking")]
 pub use releases::blocking_all_releases;
